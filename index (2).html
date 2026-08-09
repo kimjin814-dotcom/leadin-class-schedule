@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>8월 개학 후 시간표 신청 · 리드인 장자호수점</title>
+<meta name="description" content="리드인 장자호수점 8월 개학 후 시간표 신청 (월~금 오후 2시~8시)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="8월 개학 후 시간표 신청 · 리드인 장자호수점">
+<meta property="og:description" content="월~금 오후 2시~8시, 요일과 시간을 선택해 신청해 주세요.">
+<meta property="og:image" content="./schedule_app_thumbnail.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+  :root{
+    --navy:#1F3A5F;
+    --navy-dark:#122438;
+    --cream:#FBF8F1;
+    --paper:#F1EBDC;
+    --line:#DED2B4;
+    --ink:#2B2620;
+    --ink-soft:#6B6355;
+    --amber:#E8B44A;
+    --amber-deep:#D9752B;
+    --coral:#B23A1D;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--cream); color:var(--ink);
+    font-family:'Noto Sans KR',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.serif{font-family:'Noto Serif KR',serif;}
+
+  .wrap{max-width:940px;margin:0 auto;padding:28px 18px 80px;}
+
+  .masthead{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    border-bottom:3px solid var(--navy);
+    padding-bottom:14px;margin-bottom:6px;
+    flex-wrap:wrap;gap:10px;
+  }
+  .masthead .title{font-size:26px;font-weight:700;color:var(--navy-dark);letter-spacing:-0.5px;}
+  .masthead .sub{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  .footer-admin{
+    text-align:center;margin-top:36px;padding-top:16px;
+  }
+  .footer-admin a{
+    font-size:11.5px;color:var(--ink-soft);text-decoration:none;
+    border-bottom:1px dotted var(--line);padding-bottom:1px;
+  }
+  .footer-admin a:hover{color:var(--navy);}
+
+  .notice{
+    background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;margin:18px 0;font-size:13.5px;line-height:1.7;color:var(--ink);
+  }
+  .notice b{color:var(--navy-dark);}
+
+  section.card{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:22px;margin-bottom:20px;box-shadow:0 1px 0 rgba(0,0,0,0.02);
+  }
+  .card h2{font-size:17px;margin:0 0 6px;color:var(--navy-dark);}
+  .card .hint{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;line-height:1.6;}
+
+  label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+  input[type=text]{
+    width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;
+    font-size:14.5px;font-family:inherit;background:var(--cream);color:var(--ink);
+  }
+  input[type=text]:focus{outline:none;border-color:var(--navy);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  @media(max-width:520px){.row2{grid-template-columns:1fr;}}
+
+  .dur-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+  .dur-btn{
+    flex:1;min-width:88px;padding:12px 10px;border-radius:10px;border:1.5px solid var(--line);
+    background:var(--cream);color:var(--ink);font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;
+  }
+  .dur-btn .sub{display:block;font-weight:500;font-size:10.5px;color:var(--ink-soft);margin-top:2px;}
+  .dur-btn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .dur-btn.on .sub{color:#cfd9e6;}
+
+  .grid-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table.tt{border-collapse:collapse;width:100%;min-width:660px;}
+  table.tt th{
+    font-size:12.5px;color:var(--navy-dark);font-weight:700;padding:6px 4px;
+    border-bottom:2px solid var(--navy);text-align:center;position:sticky;top:0;background:#fff;
+  }
+  table.tt th.corner{border-bottom:2px solid var(--navy);}
+  table.tt td.timecell{
+    font-size:11px;color:var(--ink-soft);font-weight:700;padding:2px 8px;
+    white-space:nowrap;border-right:2px solid var(--navy);text-align:right;vertical-align:middle;
+  }
+  table.tt td.sat-label{
+    font-size:11px;color:var(--ink-soft);font-weight:700;padding:2px 8px;
+    white-space:nowrap;border-left:2px solid var(--navy);text-align:left;vertical-align:middle;
+  }
+  table.tt td.cell{
+    position:relative;height:34px;border:1px solid var(--line);cursor:pointer;
+    text-align:center;vertical-align:middle;transition:filter .1s;
+  }
+  table.tt td.cell:hover{filter:brightness(0.96);}
+  table.tt td.cell .count{font-size:11.5px;font-weight:700;color:var(--ink);}
+  td.cell.selected{box-shadow:inset 0 0 0 3px var(--navy);}
+  td.cell.selected::after{
+    content:'✓';position:absolute;top:1px;right:4px;font-size:10px;color:var(--navy);font-weight:900;
+  }
+  td.cell.over .count{color:#fff;}
+  td.cell.disabled{
+    background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.06) 0 6px,transparent 6px 12px);
+    cursor:not-allowed;
+  }
+  td.cell.roster-cell{
+    height:auto; min-height:34px; text-align:left; vertical-align:top;
+    padding:3px 5px; white-space:normal;
+  }
+  td.cell.roster-cell .name-line{
+    font-size:11px; line-height:1.3; font-weight:700; word-break:break-word;
+  }
+  td.cell.roster-cell .name-line + .name-line{ margin-top:1px; }
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--ink-soft);align-items:center;}
+  .legend .sw{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid var(--line);}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
+  .chip{
+    background:var(--navy);color:#fff;font-size:12.5px;font-weight:600;
+    padding:6px 8px 6px 12px;border-radius:999px;display:flex;align-items:center;gap:6px;
+  }
+  .chip button{
+    background:rgba(255,255,255,0.18);border:none;color:#fff;width:18px;height:18px;border-radius:50%;
+    cursor:pointer;font-size:11px;line-height:1;
+  }
+
+  .btn-primary{
+    background:var(--navy);color:#fff;border:none;border-radius:9px;
+    padding:13px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;
+    font-family:inherit;transition:.15s;
+  }
+  .btn-primary:hover{background:var(--navy-dark);}
+
+  .btn-ghost{
+    background:transparent;border:1.5px solid var(--navy);color:var(--navy);
+    border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  }
+  .btn-ghost.on{background:var(--navy);color:#fff;}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--navy-dark);color:#fff;padding:12px 20px;border-radius:10px;
+    font-size:13.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.2);z-index:50;
+    animation:fadeup .25s ease;
+  }
+  @keyframes fadeup{from{opacity:0;transform:translate(-50%,8px);}to{opacity:1;transform:translate(-50%,0);}}
+
+  .roster{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;}
+  .roster h3{font-size:13.5px;margin:0 0 8px;color:var(--navy-dark);}
+  .roster-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13.5px;border-bottom:1px solid var(--paper);}
+  .roster-row .name{font-weight:600;}
+  .roster-row .meta{color:var(--ink-soft);font-size:11.5px;}
+  .del-btn{background:none;border:none;color:var(--coral);font-size:12px;cursor:pointer;font-weight:700;}
+  .empty{color:var(--ink-soft);font-size:13px;padding:8px 0;}
+
+  .admin-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .admin-stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat{background:var(--paper);border-radius:10px;padding:10px 16px;text-align:center;min-width:74px;}
+  .stat .num{font-size:20px;font-weight:900;color:var(--navy-dark);font-family:'Noto Serif KR',serif;}
+  .stat .lbl{font-size:11px;color:var(--ink-soft);}
+
+  textarea.notice-box{
+    width:100%;min-height:150px;border:1.5px solid var(--line);border-radius:8px;
+    padding:12px;font-size:13px;line-height:1.7;font-family:inherit;color:var(--ink);background:var(--cream);resize:vertical;
+  }
+  .copy-row{display:flex;justify-content:flex-end;margin-top:8px;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="wrap" id="app">불러오는 중…</div>
+
+<script>
+const DAYS = ['월','화','수','목','금','토'];
+
+// 요일별 운영 시간 (분 단위, 24h)
+function dayRange(day){
+  return day==='토' ? [10*60, 13*60] : [14*60, 20*60]; // 토: 오전10~오후1시 / 평일: 오후2~8시
+}
+
+const WEEK_SLOTS = []; for(let m=14*60; m<20*60; m+=30) WEEK_SLOTS.push(m); // 12칸(평일 축, 표 전체 높이 기준)
+const SAT_SLOTS  = []; for(let m=10*60; m<13*60; m+=30) SAT_SLOTS.push(m);  // 6칸(토요일 자체 축)
+const SAT_SPAN = WEEK_SLOTS.length / SAT_SLOTS.length; // 토요일 한 칸이 차지할 평일-행 개수 (여기선 2)
+
+const DURATIONS = [60,90,120,180]; // 분 단위 프리셋
+const DEFAULT_CAP = 14;
+const ADMIN_PIN = '0000';
+const SAT_OPEN_FOR_BOOKING = false; // 토요일 수업은 9월부터 시작 — 그 전까지는 신청 폼에서 선택 불가
+
+let registrations = []; // {id,name,school,day,start,duration,ts}
+let capacities = {};    // key(day-blockStart) -> cap
+let tab = 'parent';
+let rawPicks = {};      // day -> Set(blockStart) : 신청 폼에서 아직 제출 안 한 선택
+let selectedDuration = 60; // 숫자 또는 'custom'
+let formName = '';
+let formSchool = '';
+let adminAuthed = false;
+let capEditMode = false;
+let nameViewMode = false; // 시간표에 학생 이름을 출석부처럼 바로 표시하는 모드 (관리자 전용)
+let viewingCell = null; // "day-blockStart"
+let toastMsg = null;
+let toastTimer = null;
+
+function timeLabel(m){
+  const h = Math.floor(m/60), mm = m%60;
+  let period, dh;
+  if(h<12){ period='오전'; dh=h; }
+  else if(h===12){ period='오후'; dh=12; }
+  else { period='오후'; dh=h-12; }
+  return mm===0 ? `${period} ${dh}시` : `${period} ${dh}시 30분`;
+}
+function rangeLabel(start,dur){ return `${timeLabel(start)} ~ ${timeLabel(start+dur)}`; }
+function cellKey(day,m){ return day+'-'+m; }
+function getCap(day,m){ const v = capacities[cellKey(day,m)]; return (v===undefined||v===null)?DEFAULT_CAP:v; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+function getOverlapCount(day,blockStart){
+  return registrations.filter(r=> r.day===day && blockStart>=r.start && blockStart<r.start+r.duration).length;
+}
+function getOverlapList(day,blockStart){
+  return registrations.filter(r=> r.day===day && blockStart>=r.start && blockStart<r.start+r.duration);
+}
+
+// ---- Supabase 연결 설정 ----
+// Supabase 프로젝트 만든 뒤 Project Settings > API 에서 아래 두 값을 복사해서 넣어 주세요.
+const SUPABASE_URL = 'https://obejysdsdhkcrpvvyjau.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_juLs6nePyKJ5MzPcVTixsw_x8AOzq6H';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function kvGet(key, fallback){
+  try{
+    const { data, error } = await sb.from('app_kv').select('value').eq('key', key).maybeSingle();
+    if(error || !data) return fallback;
+    return JSON.parse(data.value);
+  }catch(e){ return fallback; }
+}
+async function kvSet(key, value){
+  try{
+    const { error } = await sb.from('app_kv').upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
+    if(error) throw error;
+    return true;
+  }catch(e){ return false; }
+}
+
+async function loadData(){
+  registrations = await kvGet('registrations', []);
+  capacities = await kvGet('capacities', {});
+}
+async function saveRegistrations(){
+  const ok = await kvSet('registrations', registrations);
+  if(!ok) showToast('저장에 실패했어요. 다시 시도해 주세요.');
+}
+async function saveCapacities(){
+  const ok = await kvSet('capacities', capacities);
+  if(!ok) showToast('정원 저장에 실패했어요.');
+}
+
+function hex2rgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function rgb2hex(r,g,b){return '#'+[r,g,b].map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');}
+function lerp(a,b,t){return a+(b-a)*t;}
+function lerpColor(c1,c2,t){
+  const a=hex2rgb(c1), b=hex2rgb(c2);
+  return rgb2hex(lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t));
+}
+const HEAT_START = '#FDF6E6'; // 1명: 아주 연한 미색
+const HEAT_END   = '#D9752B'; // 13명: 진한 오렌지색
+const HEAT_LEVELS = 13;
+const RED = '#E23B2E';        // 정원 도달(마감): 빨간색
+
+function cellColor(count,cap){
+  if(count<=0) return '#FBF8F1';
+  if(isOver(count,cap)) return RED; // 정원(기본 14명) 도달 시 빨간색
+  const t = Math.min(count-1, HEAT_LEVELS-1) / (HEAT_LEVELS-1); // 1명→0, 13명→1
+  return lerpColor(HEAT_START, HEAT_END, t);
+}
+function isOver(count,cap){ return cap>0 && count>=cap; }
+function textColorFor(count,cap){
+  if(isOver(count,cap)) return '#fff';
+  return count>=9 ? '#fff' : 'var(--ink)';
+}
+
+function showToast(msg){
+  toastMsg = msg; render();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ toastMsg=null; render(); }, 2600);
+}
+
+function switchTab(t){
+  if(t==='admin' && !adminAuthed){
+    const pin = window.prompt('관리자 비밀번호를 입력해 주세요.');
+    if(pin === null) return;
+    if(pin !== ADMIN_PIN){ alert('비밀번호가 올바르지 않아요.'); return; }
+    adminAuthed = true;
+  }
+  tab = t; viewingCell = null; render();
+}
+
+function setDuration(d){ selectedDuration = d; render(); }
+
+/* ---- 신청 폼: 원시 30분 블록 선택 & 자동 병합 ---- */
+function dayPicks(day){
+  if(!rawPicks[day]) rawPicks[day] = new Set();
+  return rawPicks[day];
+}
+function runContaining(day,start){
+  const set = dayPicks(day);
+  if(!set.has(start)) return [];
+  let s=start; while(set.has(s-30)) s-=30;
+  let e=start; while(set.has(e+30)) e+=30;
+  const run=[]; for(let m=s;m<=e;m+=30) run.push(m);
+  return run;
+}
+function isBlockFull(day,m){
+  return getOverlapCount(day,m) >= getCap(day,m);
+}
+function toggleSelect(day,start){
+  if(day==='토' && !SAT_OPEN_FOR_BOOKING){
+    showToast('토요일 수업은 9월부터 신청할 수 있어요.');
+    return;
+  }
+  const [open,close] = dayRange(day);
+  const set = dayPicks(day);
+  if(set.has(start)){
+    runContaining(day,start).forEach(m=>set.delete(m));
+    render(); return;
+  }
+  if(isBlockFull(day,start)){
+    showToast('이 시간은 정원이 다 차서 마감됐어요.');
+    return;
+  }
+  if(selectedDuration==='custom'){
+    set.add(start);
+  } else {
+    const dur = selectedDuration;
+    if(start+dur > close){ showToast(`마감(${timeLabel(close)})을 넘어서 이 시간에는 선택할 수 없어요.`); return; }
+    for(let m=start; m<start+dur; m+=30){
+      if(isBlockFull(day,m)){ showToast(`${timeLabel(m)} 시간이 정원이 다 차서, 이 길이로는 선택할 수 없어요.`); return; }
+    }
+    for(let m=start; m<start+dur; m+=30) set.add(m);
+  }
+  render();
+}
+function mergedSelections(){
+  const result = [];
+  DAYS.forEach(day=>{
+    const starts = [...dayPicks(day)].sort((a,b)=>a-b);
+    let i=0;
+    while(i<starts.length){
+      let s=starts[i], e=starts[i];
+      while(i+1<starts.length && starts[i+1]===e+30){ i++; e=starts[i]; }
+      result.push({ day, start:s, duration:(e-s)+30 });
+      i++;
+    }
+  });
+  return result;
+}
+function removeChip(day,start,duration){
+  const set = dayPicks(day);
+  for(let m=start; m<start+duration; m+=30) set.delete(m);
+  render();
+}
+
+async function submitForm(){
+  const name = formName.trim();
+  if(!name){ showToast('아이 이름을 입력해 주세요.'); return; }
+  const arr = mergedSelections();
+  if(arr.length===0){ showToast('요일과 시간을 한 곳 이상 선택해 주세요.'); return; }
+  const ts = Date.now();
+  arr.forEach(s=>{
+    registrations.push({ id:uid(), name, school:formSchool.trim(), day:s.day, start:s.start, duration:s.duration, ts });
+  });
+  await saveRegistrations();
+  formName=''; formSchool=''; rawPicks={};
+  showToast('신청이 완료됐어요. 감사합니다!');
+}
+
+async function deleteRegistration(id){
+  if(!window.confirm('이 신청을 삭제할까요?')) return;
+  registrations = registrations.filter(r=>r.id!==id);
+  await saveRegistrations();
+  render();
+}
+
+function toggleCapEdit(){ capEditMode = !capEditMode; viewingCell=null; render(); }
+function toggleNameView(){ nameViewMode = !nameViewMode; render(); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function handleAdminCellClick(day,m){
+  if(capEditMode){
+    const cur = getCap(day,m);
+    const v = window.prompt(`${day}요일 ${timeLabel(m)} 정원을 입력해 주세요.`, cur);
+    if(v===null) return;
+    const num = parseInt(v,10);
+    if(isNaN(num) || num<0){ alert('숫자를 입력해 주세요.'); return; }
+    capacities[cellKey(day,m)] = num;
+    await saveCapacities();
+    render();
+  } else {
+    viewingCell = (viewingCell===cellKey(day,m)) ? null : cellKey(day,m);
+    render();
+  }
+}
+
+function buildCellTd(mode,day,m,rowspan){
+  const [,close] = dayRange(day);
+  const cnt = getOverlapCount(day,m), cap = getCap(day,m);
+  const bg = cellColor(cnt,cap);
+  const over = isOver(cnt,cap);
+  const tcolor = textColorFor(cnt,cap);
+  let cls = 'cell';
+  let onclick = '';
+  if(mode==='parent'){
+    const satLocked = (day==='토' && !SAT_OPEN_FOR_BOOKING);
+    const picked = !satLocked && dayPicks(day).has(m);
+    const full = isOver(cnt,cap);
+    const disabled = satLocked || (!picked && (full || (selectedDuration!=='custom' && (m+selectedDuration > close))));
+    if(picked) cls += ' selected';
+    else if(disabled) cls += ' disabled';
+    onclick = satLocked ? `showToast('토요일 수업은 9월부터 신청할 수 있어요.')` : `toggleSelect('${day}',${m})`;
+  } else {
+    onclick = `handleAdminCellClick('${day}',${m})`;
+  }
+  if(over) cls += ' over';
+  const rs = rowspan>1 ? ` rowspan="${rowspan}"` : '';
+
+  let inner;
+  if(mode==='admin' && nameViewMode && !capEditMode){
+    // 출석부처럼 시작 시간대에만 학생 이름을 표시
+    const starters = registrations.filter(r=> r.day===day && r.start===m);
+    cls += ' roster-cell';
+    if(starters.length===0){
+      inner = '';
+    } else {
+      inner = starters.map(r=>`<div class="name-line" style="color:${tcolor==='#fff'?'#fff':'var(--navy-dark)'}">${escapeHtml(r.name)}</div>`).join('');
+    }
+  } else {
+    inner = `<div class="count" style="color:${tcolor}">${cnt>0?cnt:''}${over?'!':''}</div>`;
+  }
+
+  return `<td class="${cls}"${rs} style="background:${bg}" onclick="${onclick}">${inner}</td>`;
+}
+
+function buildGrid(mode){
+  let html = `<div class="grid-scroll"><table class="tt"><thead><tr><th class="corner"></th>`;
+  DAYS.forEach(d=> html += `<th>${d}</th>`);
+  html += `<th class="corner">토요일 시간</th></tr></thead><tbody>`;
+
+  WEEK_SLOTS.forEach((m,i)=>{
+    html += `<tr>`;
+    html += `<td class="timecell">${m%60===0? timeLabel(m):''}</td>`;
+    DAYS.forEach(d=>{
+      if(d==='토'){
+        if(i % SAT_SPAN === 0){
+          const satM = SAT_SLOTS[i/SAT_SPAN];
+          html += buildCellTd(mode,'토',satM,SAT_SPAN);
+        }
+        // 그 외 행은 위 칸의 rowspan에 이미 포함되어 있어 건너뜀
+      } else {
+        html += buildCellTd(mode,d,m,1);
+      }
+    });
+    if(i % SAT_SPAN === 0){
+      const satM = SAT_SLOTS[i/SAT_SPAN];
+      const lbl = satM % 60 === 0 ? timeLabel(satM) : '';
+      html += `<td class="sat-label" rowspan="${SAT_SPAN}">${lbl}</td>`;
+    }
+    html += `</tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderParentTab(){
+  let html = `
+  <div class="notice">
+    8월 18일(화)부터 평일 오후 2시~오후 8시에 수업합니다. 사전 수업 준비와 원활한 진행을 위해 수업 시간을 신청해 주세요. 시간대별 정원이 다 차면 그 시간은 더 이상 신청할 수 없어요.<br>
+    <b>토요일 수업은 9월부터 시작합니다.</b> 지금은 평일만 신청할 수 있어요.
+  </div>
+
+  <section class="card">
+    <h2>1. 아이 정보</h2>
+    <div class="row2">
+      <div>
+        <label>아이 이름 *</label>
+        <input type="text" value="${formName.replace(/"/g,'&quot;')}" oninput="formName=this.value" placeholder="예: 김민준">
+      </div>
+      <div>
+        <label>학교 / 학년 (선택)</label>
+        <input type="text" value="${formSchool.replace(/"/g,'&quot;')}" oninput="formSchool=this.value" placeholder="예: OO초 4학년">
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. 수업 시간</h2>
+    <div class="hint">고른 길이만큼 시작 시간을 누르면 자동으로 선택돼요. 요일마다 수업 시간이 다르면(예: 월요일은 60분, 수요일은 90분) '기타(혼합)'을 고른 뒤 3번에서 필요한 칸만큼 직접 눌러 주세요.</div>
+    <div class="dur-btns">
+      ${DURATIONS.map(d=>`<button class="dur-btn ${selectedDuration===d?'on':''}" onclick="setDuration(${d})">${d}분 수업</button>`).join('')}
+      <button class="dur-btn ${selectedDuration==='custom'?'on':''}" onclick="setDuration('custom')">기타(혼합)<span class="sub">요일마다 다르게</span></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. 요일 · 시간 선택 (여러 칸 선택 가능)</h2>
+    <div class="hint">왼쪽 시간은 <b>평일(월~금)</b> 기준, 오른쪽 시간은 <b>토요일</b> 기준이에요. 토요일 칸은 표 전체 높이를 그대로 써서 오전 10시~오후 1시가 다 들어가요. (토요일은 9월부터 시작)</div>
+    ${buildGrid('parent')}
+    <div class="legend">
+      <span><span class="sw" style="background:${HEAT_START}"></span>여유</span>
+      <span><span class="sw" style="background:${lerpColor(HEAT_START,HEAT_END,0.6)}"></span>붐빔</span>
+      <span><span class="sw" style="background:${RED}"></span>정원 마감</span>
+      <span>✓ = 선택한 시간 · 같은 칸을 다시 누르면 그 수업이 취소돼요</span>
+    </div>
+  </section>
+  `;
+
+  const arr = mergedSelections();
+  if(arr.length>0){
+    html += `<section class="card"><h2>선택한 수업</h2><div class="chips">`;
+    arr.sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start-b.start).forEach(s=>{
+      html += `<div class="chip">${s.day} ${rangeLabel(s.start,s.duration)} (${s.duration}분) <button onclick="removeChip('${s.day}',${s.start},${s.duration})">✕</button></div>`;
+    });
+    html += `</div></section>`;
+  }
+
+  html += `
+  <section class="card">
+    <button class="btn-primary" onclick="submitForm()">신청 완료하기</button>
+  </section>
+  `;
+  return html;
+}
+
+function renderAdminTab(){
+  const total = registrations.length;
+  const byDay = {};
+  DAYS.forEach(d=> byDay[d] = registrations.filter(r=>r.day===d).length);
+  const busiest = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
+
+  let html = `
+  <div class="admin-toolbar">
+    <div class="admin-stats">
+      <div class="stat"><div class="num">${total}</div><div class="lbl">전체 신청</div></div>
+      <div class="stat"><div class="num">${busiest?busiest[0]:'-'}</div><div class="lbl">가장 붐비는 요일</div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-ghost ${nameViewMode?'on':''}" onclick="toggleNameView()">${nameViewMode? '숫자로 보기':'이름으로 보기 (출석부)'}</button>
+      <button class="btn-ghost ${capEditMode?'on':''}" onclick="toggleCapEdit()">${capEditMode? '정원 설정 중 (칸 클릭)':'정원 설정하기'}</button>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>요일 · 시간별 신청 현황</h2>
+    <div class="hint">${nameViewMode
+      ? '학생 이름은 <b>수업 시작 시간</b> 칸에만 표시돼요. 칸 색깔은 그 30분 동안 <b>동시에 수업 중인 학생 수</b> 기준으로 그대로 계산돼요.'
+      : '칸의 숫자는 그 30분 동안 <b>동시에 수업 중인 학생 수</b>예요. 왼쪽 시간은 평일 기준, 오른쪽 시간은 토요일 기준이에요. 60/90/120/180분 수업이 겹치는 시간대는 자동으로 합산돼서 진하게 표시돼요.'}</div>
+    ${buildGrid('admin')}
+    <div class="legend">
+      <span><span class="sw" style="background:${HEAT_START}"></span>여유</span>
+      <span><span class="sw" style="background:${lerpColor(HEAT_START,HEAT_END,0.6)}"></span>붐빔</span>
+      <span><span class="sw" style="background:${RED}"></span>정원 마감</span>
+      <span>${capEditMode? '칸을 클릭해 해당 시간의 정원을 바꿀 수 있어요' : '칸을 클릭하면 그 시간에 수업 중인 아이 명단을 볼 수 있어요'}</span>
+    </div>
+  `;
+
+  if(!capEditMode && viewingCell){
+    const [d,mStr] = viewingCell.split('-');
+    const m = parseInt(mStr,10);
+    const list = getOverlapList(d,m);
+    html += `<div class="roster"><h3>${d}요일 ${timeLabel(m)} 수업 중인 아이 (${list.length}명 / 정원 ${getCap(d,m)}명)</h3>`;
+    if(list.length===0){ html += `<div class="empty">이 시간에 수업 중인 아이가 없어요.</div>`; }
+    else{
+      list.forEach(r=>{
+        html += `<div class="roster-row">
+          <div><span class="name">${r.name}</span> <span class="meta">${r.school?('· '+r.school+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분)</span></div>
+          <button class="del-btn" onclick="deleteRegistration('${r.id}')">삭제</button>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+  }
+  html += `</section>`;
+
+  const noticeText = `[8월 개학 후 시간표 신청 안내]
+
+8월 3주차부터 평일은 오후 2시~오후 8시, 토요일은 오전 10시~오후 1시 사이에 등원합니다.
+아래 링크에서 아이 이름, 수업 시간(60/90/120/180분 또는 기타), 원하는 요일과 시간을 선택해 신청해 주세요.
+(칸 색이 진할수록 이미 신청이 몰린 시간대예요)
+
+신청 링크: (이 앱 공유 링크를 붙여넣어 주세요)
+
+문의사항은 학원으로 연락 주세요. 감사합니다.`;
+
+  html += `
+  <section class="card">
+    <h2>학부모 공지문 (복사해서 사용하세요)</h2>
+    <textarea class="notice-box" id="noticeBox" readonly>${noticeText}</textarea>
+    <div class="copy-row">
+      <button class="btn-ghost" onclick="copyNotice()">문구 복사하기</button>
+    </div>
+  </section>
+  `;
+
+  return html;
+}
+
+function copyNotice(){
+  const box = document.getElementById('noticeBox');
+  box.select();
+  document.execCommand('copy');
+  showToast('공지문이 복사됐어요.');
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="masthead">
+      <div>
+        <div class="title">8월 개학 후 시간표 신청</div>
+        <div class="sub">월~금 오후 2시~8시, 9월 시간표 신청은 8월 4주에 다시 공지 드려요~!</div>
+      </div>
+    </div>
+    ${tab==='parent' ? renderParentTab() : renderAdminTab()}
+    ${toastMsg? `<div class="toast">${toastMsg}</div>` : ''}
+    <div class="footer-admin">
+      ${tab==='parent'
+        ? `<a href="javascript:void(0)" onclick="switchTab('admin')">관리자</a>`
+        : `<a href="javascript:void(0)" onclick="switchTab('parent')">← 처음 화면으로</a>`}
+    </div>
+  `;
+}
+
+(async function init(){
+  await loadData();
+  render();
+})();
+</script>
+</body>
+</html>
