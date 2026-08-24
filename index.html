@@ -52,6 +52,26 @@
   }
   .footer-admin a:hover{color:var(--navy);}
 
+  .new-banner{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#FDECEA;border:1.5px solid var(--coral);border-radius:10px;
+    padding:12px 16px;margin:16px 0;cursor:pointer;transition:.15s;
+  }
+  .new-banner:hover{background:#FBDFDB;}
+  .new-banner .txt{font-size:14px;font-weight:700;color:var(--coral);display:flex;align-items:center;gap:8px;}
+  .new-banner .dot{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:20px;height:20px;padding:0 5px;border-radius:999px;
+    background:var(--coral);color:#fff;font-size:11.5px;font-weight:900;
+  }
+  .new-banner .arrow{font-size:13px;color:var(--coral);font-weight:700;}
+  .badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+    background:var(--coral);color:#fff;font-size:10px;font-weight:900;
+    vertical-align:2px;margin-left:3px;
+  }
+
   .notice{
     background:var(--paper);border:1px solid var(--line);border-radius:10px;
     padding:14px 16px;margin:18px 0;font-size:13.5px;line-height:1.7;color:var(--ink);
@@ -121,12 +141,6 @@
     font-size:11px; line-height:1.3; font-weight:700; word-break:break-word;
   }
   td.cell.roster-cell .name-line + .name-line{ margin-top:1px; }
-
-  .seat-badge{
-    font-size:10.5px; font-weight:800; line-height:1.2;
-  }
-  .seat-badge.low{ color:var(--amber-deep); }
-  .seat-badge.full{ color:var(--coral); }
 
   .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--ink-soft);align-items:center;}
   .legend .sw{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid var(--line);}
@@ -229,16 +243,27 @@ let tab = 'parent';
 let rawPicks = {};      // day -> Set(blockStart) : 신청 폼에서 아직 제출 안 한 선택
 let selectedDuration = 60; // 숫자 또는 'custom'
 let formName = '';
-let checkName = '';
-let checkResults = null; // null=조회 전, 배열=조회 결과
 let formSchool = '';
 let adminAuthed = false;
 let capEditMode = false;
 let nameViewMode = false; // 시간표에 학생 이름을 출석부처럼 바로 표시하는 모드 (관리자 전용)
-let logViewMode = false; // 전체 신청을 시간 순서대로 보는 모드 (선착순 확인용, 관리자 전용)
 let viewingCell = null; // "day-blockStart"
 let toastMsg = null;
 let toastTimer = null;
+let adminLastChecked = 0; // 관리자가 마지막으로 관리 탭을 확인한 시각 (모든 신청자 공용, Supabase에 저장)
+
+// 이 기기가 이전에 관리자 비밀번호로 들어온 적이 있는지 (부모님 기기에는 절대 안 남음, 이 브라우저에만 저장)
+function isAdminDevice(){
+  try{ return localStorage.getItem('ldreadn_admin_device') === '1'; }
+  catch(e){ return false; }
+}
+function markAdminDevice(){
+  try{ localStorage.setItem('ldreadn_admin_device', '1'); }
+  catch(e){ /* 저장 안 돼도 앱 동작에는 지장 없음 */ }
+}
+function newRegCount(){
+  return registrations.filter(r=> r.ts > adminLastChecked).length;
+}
 
 function timeLabel(m){
   const h = Math.floor(m/60), mm = m%60;
@@ -252,15 +277,6 @@ function rangeLabel(start,dur){ return `${timeLabel(start)} ~ ${timeLabel(start+
 function cellKey(day,m){ return day+'-'+m; }
 function getCap(day,m){ const v = capacities[cellKey(day,m)]; return (v===undefined||v===null)?DEFAULT_CAP:v; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function tsLabel(ts){
-  const d = new Date(ts);
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mi = String(d.getMinutes()).padStart(2,'0');
-  const ss = String(d.getSeconds()).padStart(2,'0');
-  return `${mm}/${dd} ${hh}:${mi}:${ss}`;
-}
 
 function getOverlapCount(day,blockStart){
   return registrations.filter(r=> r.day===day && blockStart>=r.start && blockStart<r.start+r.duration).length;
@@ -331,6 +347,7 @@ async function kvSet(key, value){
 async function loadData(){
   registrations = await kvGet('registrations', []);
   capacities = await kvGet('capacities', {});
+  adminLastChecked = await kvGet('adminLastChecked', 0);
 }
 async function saveRegistrations(){
   const ok = await kvSet('registrations', registrations);
@@ -377,6 +394,11 @@ function switchTab(t){
     if(pin === null) return;
     if(pin !== ADMIN_PIN){ alert('비밀번호가 올바르지 않아요.'); return; }
     adminAuthed = true;
+    markAdminDevice(); // 이 기기를 "관리자 기기"로 기억 → 다음부터 새 신청 배지가 이 기기에서만 보임
+  }
+  if(t==='admin'){
+    adminLastChecked = Date.now();
+    kvSet('adminLastChecked', adminLastChecked); // 확인 시각 저장 (화면 전환은 기다리지 않고 바로 진행)
   }
   tab = t; viewingCell = null; render();
 }
@@ -446,28 +468,6 @@ function removeChip(day,start,duration){
   render();
 }
 
-function doCheckRegistration(){
-  const name = checkName.trim();
-  if(!name){ showToast('아이 이름을 입력해 주세요.'); return; }
-  checkResults = registrations
-    .filter(r=> r.name.trim() === name)
-    .sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start-b.start);
-  render();
-}
-
-function renderCheckResults(){
-  if(checkResults===null) return '';
-  if(checkResults.length===0){
-    return `<div class="hint" style="margin-top:10px;color:var(--coral);">'${escapeHtml(checkName.trim())}' 이름으로 신청된 내역이 없어요. 이름을 신청 때와 정확히 똑같이 입력하셨는지 확인해 주세요.</div>`;
-  }
-  let html = `<div class="chips" style="margin-top:12px;">`;
-  checkResults.forEach(r=>{
-    html += `<div class="chip" style="background:var(--sage,#5C7A5F);">${r.day} ${rangeLabel(r.start,r.duration)} (${r.duration}분)</div>`;
-  });
-  html += `</div>`;
-  return html;
-}
-
 async function submitForm(){
   const name = formName.trim();
   if(!name){ showToast('아이 이름을 입력해 주세요.'); return; }
@@ -491,39 +491,7 @@ async function deleteRegistration(id){
 
 function toggleCapEdit(){ capEditMode = !capEditMode; viewingCell=null; render(); }
 function toggleNameView(){ nameViewMode = !nameViewMode; render(); }
-function toggleLogView(){ logViewMode = !logViewMode; render(); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-function renderLogTable(){
-  const list = registrations.slice().sort((a,b)=> a.ts-b.ts);
-  let html = `<section class="card">
-    <h2>전체 신청 기록 (선착순 확인용)</h2>
-    <div class="hint">가장 먼저 신청한 순서대로 나열돼요. 특정 시간대에 누가 먼저 신청했는지 다툼이 있을 때 확인하세요.</div>`;
-  if(list.length===0){
-    html += `<div class="empty">아직 신청이 없어요.</div>`;
-  } else {
-    html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="border-bottom:2px solid var(--navy);">
-        <th style="text-align:left;padding:6px 8px;">순번</th>
-        <th style="text-align:left;padding:6px 8px;">신청 시각</th>
-        <th style="text-align:left;padding:6px 8px;">이름</th>
-        <th style="text-align:left;padding:6px 8px;">학교/학년</th>
-        <th style="text-align:left;padding:6px 8px;">요일 · 시간</th>
-      </tr></thead><tbody>`;
-    list.forEach((r,i)=>{
-      html += `<tr style="border-bottom:1px solid var(--paper);">
-        <td style="padding:6px 8px;color:var(--ink-soft);">${i+1}</td>
-        <td style="padding:6px 8px;font-weight:700;">${tsLabel(r.ts)}</td>
-        <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
-        <td style="padding:6px 8px;color:var(--ink-soft);">${escapeHtml(r.school||'')}</td>
-        <td style="padding:6px 8px;">${r.day} ${rangeLabel(r.start,r.duration)} (${r.duration}분)</td>
-      </tr>`;
-    });
-    html += `</tbody></table></div>`;
-  }
-  html += `</section>`;
-  return html;
-}
 
 async function handleAdminCellClick(day,m){
   if(capEditMode){
@@ -549,7 +517,6 @@ function buildCellTd(mode,day,m,rowspan){
   const tcolor = textColorFor(cnt,cap);
   let cls = 'cell';
   let onclick = '';
-  let parentBadge = '';
   if(mode==='parent'){
     const satLocked = (day==='토' && !SAT_OPEN_FOR_BOOKING);
     const picked = !satLocked && dayPicks(day).has(m);
@@ -558,18 +525,6 @@ function buildCellTd(mode,day,m,rowspan){
     if(picked) cls += ' selected';
     else if(disabled) cls += ' disabled';
     onclick = satLocked ? `showToast('토요일 수업은 9월부터 신청할 수 있어요.')` : `toggleSelect('${day}',${m})`;
-
-    // 잔여석 표시: 넉넉할 땐 아무 표시 없음, 3석 이하로 남았을 때만 임박 안내, 마감이면 '마감'
-    if(!satLocked){
-      if(full){
-        parentBadge = `<div class="seat-badge full">마감</div>`;
-      } else if(!picked){
-        const remaining = cap - cnt;
-        if(remaining>0 && remaining<=3){
-          parentBadge = `<div class="seat-badge low">잔여 ${remaining}석</div>`;
-        }
-      }
-    }
   } else {
     onclick = `handleAdminCellClick('${day}',${m})`;
   }
@@ -589,8 +544,8 @@ function buildCellTd(mode,day,m,rowspan){
   } else if(mode==='admin'){
     inner = `<div class="count" style="color:${tcolor}">${cnt>0?cnt:''}${over?'!':''}</div>`;
   } else {
-    // 학부모 화면: 숫자·색상 없이, 신청가능/마감/잔여석 임박 정도만 보여줌
-    inner = parentBadge;
+    // 학부모 화면: 숫자·색상 없이, 신청가능/마감 상태만 보여줌
+    inner = '';
   }
 
   return `<td class="${cls}"${rs} style="background:${bg}" onclick="${onclick}">${inner}</td>`;
@@ -632,21 +587,6 @@ function renderParentTab(){
     8월 18일(화)부터 평일 오후 2시~오후 8시에 수업합니다. 사전 수업 준비와 원활한 진행을 위해 수업 시간을 신청해 주세요. 시간대별 정원이 다 차면 그 시간은 더 이상 신청할 수 없어요.<br>
     <b>토요일 수업은 9월부터 시작합니다.</b> 지금은 평일만 신청할 수 있어요.
   </div>
-
-  <section class="card">
-    <h2>이미 신청하셨나요?</h2>
-    <div class="hint">신청할 때 입력했던 아이 이름을 똑같이 입력하시면, 언제 신청하셨는지 확인할 수 있어요.</div>
-    <div class="row2">
-      <div>
-        <label>아이 이름</label>
-        <input type="text" value="${checkName.replace(/"/g,'&quot;')}" oninput="checkName=this.value" placeholder="예: 김민준" onkeydown="if(event.key==='Enter'){doCheckRegistration();}">
-      </div>
-      <div style="display:flex;align-items:flex-end;">
-        <button class="btn-ghost" style="width:100%;padding:11px;" onclick="doCheckRegistration()">신청 내역 확인하기</button>
-      </div>
-    </div>
-    ${renderCheckResults()}
-  </section>
 
   <section class="card">
     <h2>1. 아이 정보</h2>
@@ -713,11 +653,8 @@ function renderAdminTab(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn-ghost ${nameViewMode?'on':''}" onclick="toggleNameView()">${nameViewMode? '숫자로 보기':'이름으로 보기 (출석부)'}</button>
       <button class="btn-ghost ${capEditMode?'on':''}" onclick="toggleCapEdit()">${capEditMode? '정원 설정 중 (칸 클릭)':'정원 설정하기'}</button>
-      <button class="btn-ghost ${logViewMode?'on':''}" onclick="toggleLogView()">${logViewMode? '기록 닫기':'전체 신청 기록 (선착순 확인)'}</button>
     </div>
   </div>
-
-  ${logViewMode ? renderLogTable() : ''}
 
   <section class="card">
     <h2>시간표 인쇄</h2>
@@ -748,13 +685,13 @@ function renderAdminTab(){
   if(!capEditMode && viewingCell){
     const [d,mStr] = viewingCell.split('-');
     const m = parseInt(mStr,10);
-    const list = getOverlapList(d,m).slice().sort((a,b)=> a.ts-b.ts); // 선착순 확인용: 신청 시각 순
-    html += `<div class="roster"><h3>${d}요일 ${timeLabel(m)} 수업 중인 아이 (${list.length}명 / 정원 ${getCap(d,m)}명) · 신청 순서대로</h3>`;
+    const list = getOverlapList(d,m);
+    html += `<div class="roster"><h3>${d}요일 ${timeLabel(m)} 수업 중인 아이 (${list.length}명 / 정원 ${getCap(d,m)}명)</h3>`;
     if(list.length===0){ html += `<div class="empty">이 시간에 수업 중인 아이가 없어요.</div>`; }
     else{
-      list.forEach((r,i)=>{
+      list.forEach(r=>{
         html += `<div class="roster-row">
-          <div><b>${i+1}.</b> <span class="name">${escapeHtml(r.name)}</span> <span class="meta">${r.school?('· '+escapeHtml(r.school)+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분) · <b>${tsLabel(r.ts)}</b> 신청</span></div>
+          <div><span class="name">${r.name}</span> <span class="meta">${r.school?('· '+r.school+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분)</span></div>
           <button class="del-btn" onclick="deleteRegistration('${r.id}')">삭제</button>
         </div>`;
       });
@@ -848,11 +785,16 @@ function render(){
         <div class="sub">월~금 오후 2시~8시, 9월 시간표 신청은 8월 4주에 다시 공지 드려요~!</div>
       </div>
     </div>
+    ${(tab==='parent' && isAdminDevice() && newRegCount()>0) ? `
+    <div class="new-banner" onclick="switchTab('admin')">
+      <span class="txt"><span class="dot">${newRegCount()}</span> 새로운 신청이 있어요</span>
+      <span class="arrow">확인하기 →</span>
+    </div>` : ''}
     ${tab==='parent' ? renderParentTab() : renderAdminTab()}
     ${toastMsg? `<div class="toast">${toastMsg}</div>` : ''}
     <div class="footer-admin">
       ${tab==='parent'
-        ? `<a href="javascript:void(0)" onclick="switchTab('admin')">관리자</a>`
+        ? `<a href="javascript:void(0)" onclick="switchTab('admin')">관리자${(isAdminDevice() && newRegCount()>0) ? `<span class="badge">${newRegCount()}</span>` : ''}</a>`
         : `<a href="javascript:void(0)" onclick="switchTab('parent')">← 처음 화면으로</a>`}
     </div>
   `;
