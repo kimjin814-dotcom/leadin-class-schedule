@@ -173,6 +173,12 @@
   .admin-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
   .admin-stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
   .stat{background:var(--paper);border-radius:10px;padding:10px 16px;text-align:center;min-width:74px;}
+  .badge-dot{
+    position:absolute; top:-7px; right:-7px;
+    background:var(--coral); color:#fff; font-size:10.5px; font-weight:900;
+    min-width:19px; height:19px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+    padding:0 4px; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25);
+  }
   .stat .num{font-size:20px;font-weight:900;color:var(--navy-dark);font-family:'Noto Serif KR',serif;}
   .stat .lbl{font-size:11px;color:var(--ink-soft);}
 
@@ -347,6 +353,14 @@ async function kvSet(key, value){
 async function loadData(){
   registrations = await kvGet('registrations', []);
   capacities = await kvGet('capacities', {});
+
+  // 이 기능이 생기기 전 데이터는 전부 '확인됨' 처리해서, 오늘부터의 신규/변경 신청만 배지에 잡히게 함 (1회성 마이그레이션)
+  let needsMigration = false;
+  registrations.forEach(r=>{
+    if(r.seen === undefined){ r.seen = true; needsMigration = true; }
+    if(r.changeType === undefined){ r.changeType = 'new'; }
+  });
+  if(needsMigration){ await saveRegistrations(); }
 }
 async function saveRegistrations(){
   const ok = await kvSet('registrations', registrations);
@@ -490,12 +504,20 @@ async function submitForm(){
   const arr = mergedSelections();
   if(arr.length===0){ showToast('요일과 시간을 한 곳 이상 선택해 주세요.'); return; }
   const ts = Date.now();
+  const isReturning = registrations.some(r=> r.name.trim() === name); // 이미 신청 이력이 있는 이름이면 '변경', 처음이면 '신규'
+  const changeType = isReturning ? 'change' : 'new';
   arr.forEach(s=>{
-    registrations.push({ id:uid(), name, school:formSchool.trim(), day:s.day, start:s.start, duration:s.duration, ts });
+    registrations.push({ id:uid(), name, school:formSchool.trim(), day:s.day, start:s.start, duration:s.duration, ts, seen:false, changeType });
   });
   await saveRegistrations();
   formName=''; formSchool=''; rawPicks={};
   showToast('신청이 완료됐어요. 감사합니다!');
+}
+
+async function markAllSeen(){
+  registrations.forEach(r=>{ r.seen = true; });
+  await saveRegistrations();
+  render();
 }
 
 async function deleteRegistration(id){
@@ -514,21 +536,31 @@ function renderLogTable(){
   const list = registrations.slice().sort((a,b)=> a.ts-b.ts);
   let html = `<section class="card">
     <h2>전체 신청 기록 (선착순 확인용)</h2>
-    <div class="hint">가장 먼저 신청한 순서대로 나열돼요. 특정 시간대에 누가 먼저 신청했는지 다툼이 있을 때 확인하세요.</div>`;
+    <div class="hint">가장 먼저 신청한 순서대로 나열돼요. 특정 시간대에 누가 먼저 신청했는지 다툼이 있을 때 확인하세요. <b>상태</b> 칸에서 아직 확인 안 한 신규·변경 신청을 바로 알 수 있어요.</div>`;
   if(list.length===0){
     html += `<div class="empty">아직 신청이 없어요.</div>`;
   } else {
     html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead><tr style="border-bottom:2px solid var(--navy);">
         <th style="text-align:left;padding:6px 8px;">순번</th>
+        <th style="text-align:left;padding:6px 8px;">상태</th>
         <th style="text-align:left;padding:6px 8px;">신청 시각</th>
         <th style="text-align:left;padding:6px 8px;">이름</th>
         <th style="text-align:left;padding:6px 8px;">학교/학년</th>
         <th style="text-align:left;padding:6px 8px;">요일 · 시간</th>
       </tr></thead><tbody>`;
     list.forEach((r,i)=>{
+      let statusHtml;
+      if(!r.seen){
+        statusHtml = r.changeType==='change'
+          ? `<span style="color:var(--coral);font-weight:900;">🔴 변경</span>`
+          : `<span style="color:var(--coral);font-weight:900;">🔴 신규</span>`;
+      } else {
+        statusHtml = `<span style="color:var(--ink-soft);">확인됨</span>`;
+      }
       html += `<tr style="border-bottom:1px solid var(--paper);">
         <td style="padding:6px 8px;color:var(--ink-soft);">${i+1}</td>
+        <td style="padding:6px 8px;">${statusHtml}</td>
         <td style="padding:6px 8px;font-weight:700;">${tsLabel(r.ts)}</td>
         <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
         <td style="padding:6px 8px;color:var(--ink-soft);">${escapeHtml(r.school||'')}</td>
@@ -600,7 +632,7 @@ function buildCellTd(mode,day,m,rowspan){
     if(starters.length===0){
       inner = '';
     } else {
-      inner = starters.map(r=>`<div class="name-line" style="color:${tcolor==='#fff'?'#fff':'var(--navy-dark)'}">${escapeHtml(r.name)}</div>`).join('');
+      inner = starters.map(r=>`<div class="name-line" style="color:${tcolor==='#fff'?'#fff':'var(--navy-dark)'}">${!r.seen?'<span style="color:var(--coral);">●</span> ':''}${escapeHtml(r.name)}</div>`).join('');
     }
   } else if(mode==='admin'){
     inner = `<div class="count" style="color:${tcolor}">${cnt>0?cnt:''}${over?'!':''}</div>`;
@@ -720,15 +752,23 @@ function renderAdminTab(){
   const byDay = {};
   DAYS.forEach(d=> byDay[d] = registrations.filter(r=>r.day===d).length);
   const busiest = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
+  const unseenCount = registrations.filter(r=>!r.seen).length;
 
   let html = `
   <div class="admin-toolbar">
     <div class="admin-stats">
+      ${unseenCount>0 ? `
+      <div class="stat" style="position:relative;background:#FDECEA;">
+        <div class="num" style="color:var(--coral);">${unseenCount}</div>
+        <div class="lbl" style="color:var(--coral);">새 신청·변경</div>
+        <div class="badge-dot">${unseenCount}</div>
+      </div>` : ''}
       <div class="stat"><div class="num">${uniqueStudents}</div><div class="lbl">신청 학생 수</div></div>
       <div class="stat"><div class="num">${total}</div><div class="lbl">전체 신청 건수</div></div>
       <div class="stat"><div class="num">${busiest?busiest[0]:'-'}</div><div class="lbl">가장 붐비는 요일</div></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${unseenCount>0 ? `<button class="btn-ghost" onclick="markAllSeen()">새 신청·변경 확인 완료</button>` : ''}
       <button class="btn-ghost ${nameViewMode?'on':''}" onclick="toggleNameView()">${nameViewMode? '숫자로 보기':'이름으로 보기 (출석부)'}</button>
       <button class="btn-ghost ${capEditMode?'on':''}" onclick="toggleCapEdit()">${capEditMode? '정원 설정 중 (칸 클릭)':'정원 설정하기'}</button>
       <button class="btn-ghost ${logViewMode?'on':''}" onclick="toggleLogView()">${logViewMode? '기록 닫기':'전체 신청 기록 (선착순 확인)'}</button>
@@ -772,8 +812,9 @@ function renderAdminTab(){
     if(list.length===0){ html += `<div class="empty">이 시간에 수업 중인 아이가 없어요.</div>`; }
     else{
       list.forEach((r,i)=>{
+        const flag = !r.seen ? `<span style="color:var(--coral);font-weight:900;">🔴 ${r.changeType==='change'?'변경':'신규'}</span> ` : '';
         html += `<div class="roster-row">
-          <div><b>${i+1}.</b> <span class="name">${escapeHtml(r.name)}</span> <span class="meta">${r.school?('· '+escapeHtml(r.school)+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분) · <b>${tsLabel(r.ts)}</b> 신청</span></div>
+          <div><b>${i+1}.</b> ${flag}<span class="name">${escapeHtml(r.name)}</span> <span class="meta">${r.school?('· '+escapeHtml(r.school)+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분) · <b>${tsLabel(r.ts)}</b> 신청</span></div>
           <button class="del-btn" onclick="deleteRegistration('${r.id}')">삭제</button>
         </div>`;
       });
