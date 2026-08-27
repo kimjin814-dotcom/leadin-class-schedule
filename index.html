@@ -275,10 +275,14 @@ function cellKey(day,m){ return day+'-'+m; }
 function getCap(day,m){ const v = capacities[cellKey(day,m)]; return (v===undefined||v===null)?DEFAULT_CAP:v; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function hasDuplicateBatches(name){
-  // 같은 이름으로 '서로 다른 시점'에 신청한 이력이 있으면 true (한 번의 신청에서 여러 요일 고른 건 제외)
+  // 같은 이름으로 '서로 다른 시점'에 신청한 이력이 있으면 true.
+  // 신청 시각이 3초 이내로 가까우면 같은 신청(버튼 두 번 눌림 등)으로 보고 제외, 그보다 확실히 떨어진 경우만 중복으로 판단.
   const trimmed = name.trim();
-  const batches = new Set(registrations.filter(r=> r.name.trim()===trimmed).map(r=>r.ts));
-  return batches.size > 1;
+  const timestamps = registrations.filter(r=> r.name.trim()===trimmed).map(r=>r.ts).sort((a,b)=>a-b);
+  for(let i=1;i<timestamps.length;i++){
+    if(timestamps[i]-timestamps[i-1] > 3000) return true;
+  }
+  return false;
 }
 function tsLabel(ts){
   const d = new Date(ts);
