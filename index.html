@@ -274,6 +274,12 @@ function rangeLabel(start,dur){ return `${timeLabel(start)} ~ ${timeLabel(start+
 function cellKey(day,m){ return day+'-'+m; }
 function getCap(day,m){ const v = capacities[cellKey(day,m)]; return (v===undefined||v===null)?DEFAULT_CAP:v; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function hasDuplicateBatches(name){
+  // 같은 이름으로 '서로 다른 시점'에 신청한 이력이 있으면 true (한 번의 신청에서 여러 요일 고른 건 제외)
+  const trimmed = name.trim();
+  const batches = new Set(registrations.filter(r=> r.name.trim()===trimmed).map(r=>r.ts));
+  return batches.size > 1;
+}
 function tsLabel(ts){
   const d = new Date(ts);
   const mm = String(d.getMonth()+1).padStart(2,'0');
@@ -559,11 +565,12 @@ function renderLogTable(){
       } else {
         statusHtml = `<span style="color:var(--ink-soft);">확인됨</span>`;
       }
+      const dupTag = hasDuplicateBatches(r.name) ? ` <span style="color:var(--amber-deep);font-weight:900;" title="같은 이름으로 여러 번 신청한 이력이 있어요">🟠 중복 신청 이력</span>` : '';
       html += `<tr style="border-bottom:1px solid var(--paper);">
         <td style="padding:6px 8px;color:var(--ink-soft);">${i+1}</td>
         <td style="padding:6px 8px;">${statusHtml}</td>
         <td style="padding:6px 8px;font-weight:700;">${tsLabel(r.ts)}</td>
-        <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
+        <td style="padding:6px 8px;">${escapeHtml(r.name)}${dupTag}</td>
         <td style="padding:6px 8px;color:var(--ink-soft);">${escapeHtml(r.school||'')}</td>
         <td style="padding:6px 8px;">${r.day} ${rangeLabel(r.start,r.duration)} (${r.duration}분)</td>
         <td style="padding:6px 8px;"><button class="del-btn" onclick="deleteRegistration('${r.id}')">삭제</button></td>
@@ -634,7 +641,11 @@ function buildCellTd(mode,day,m,rowspan){
     if(starters.length===0){
       inner = '';
     } else {
-      inner = starters.map(r=>`<div class="name-line" style="color:${tcolor==='#fff'?'#fff':'var(--navy-dark)'}">${!r.seen?'<span style="color:var(--coral);">●</span> ':''}${escapeHtml(r.name)}</div>`).join('');
+      inner = starters.map(r=>{
+        const unseenDot = !r.seen ? '<span style="color:var(--coral);">●</span> ' : '';
+        const dupDot = hasDuplicateBatches(r.name) ? '<span style="color:var(--amber-deep);" title="같은 이름으로 여러 번 신청한 이력이 있어요">●</span> ' : '';
+        return `<div class="name-line" style="color:${tcolor==='#fff'?'#fff':'var(--navy-dark)'}">${unseenDot}${dupDot}${escapeHtml(r.name)}</div>`;
+      }).join('');
     }
   } else if(mode==='admin'){
     inner = `<div class="count" style="color:${tcolor}">${cnt>0?cnt:''}${over?'!':''}</div>`;
@@ -794,7 +805,7 @@ function renderAdminTab(){
   <section class="card">
     <h2>요일 · 시간별 신청 현황</h2>
     <div class="hint">${nameViewMode
-      ? '학생 이름은 <b>수업 시작 시간</b> 칸에만 표시돼요. 칸 색깔은 그 30분 동안 <b>동시에 수업 중인 학생 수</b> 기준으로 그대로 계산돼요.'
+      ? '학생 이름은 <b>수업 시작 시간</b> 칸에만 표시돼요. 칸 색깔은 그 30분 동안 <b>동시에 수업 중인 학생 수</b> 기준으로 그대로 계산돼요. 이름 앞 <span style="color:var(--coral);">●빨간 점</span>은 아직 확인 안 한 신규·변경 신청, <span style="color:var(--amber-deep);">●주황 점</span>은 같은 이름으로 여러 번 신청한 이력이 있다는 뜻이에요 (중복 여부 확인해 보세요).'
       : '칸의 숫자는 그 30분 동안 <b>동시에 수업 중인 학생 수</b>예요. 왼쪽 시간은 평일 기준, 오른쪽 시간은 토요일 기준이에요. 60/90/120/180분 수업이 겹치는 시간대는 자동으로 합산돼서 진하게 표시돼요.'}</div>
     ${buildGrid('admin')}
     <div class="legend">
@@ -814,8 +825,9 @@ function renderAdminTab(){
     else{
       list.forEach((r,i)=>{
         const flag = !r.seen ? `<span style="color:var(--coral);font-weight:900;">🔴 ${r.changeType==='change'?'변경':'신규'}</span> ` : '';
+        const dupFlag = hasDuplicateBatches(r.name) ? `<span style="color:var(--amber-deep);font-weight:900;" title="같은 이름으로 여러 번 신청한 이력이 있어요">🟠</span> ` : '';
         html += `<div class="roster-row">
-          <div><b>${i+1}.</b> ${flag}<span class="name">${escapeHtml(r.name)}</span> <span class="meta">${r.school?('· '+escapeHtml(r.school)+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분) · <b>${tsLabel(r.ts)}</b> 신청</span></div>
+          <div><b>${i+1}.</b> ${flag}${dupFlag}<span class="name">${escapeHtml(r.name)}</span> <span class="meta">${r.school?('· '+escapeHtml(r.school)+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분) · <b>${tsLabel(r.ts)}</b> 신청</span></div>
           <button class="del-btn" onclick="deleteRegistration('${r.id}')">삭제</button>
         </div>`;
       });
