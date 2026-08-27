@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>9월 시간표 신청 · 리드인 장자호수점</title>
-<meta name="description" content="리드인 장자호수점 9월 시간표 신청 (월~금 오후 2시~8시, 토 오전 10시~오후 1시)">
+<title>8월 개학 후 시간표 신청 · 리드인 장자호수점</title>
+<meta name="description" content="리드인 장자호수점 8월 개학 후 시간표 신청 (월~금 오후 2시~8시)">
 <meta property="og:type" content="website">
-<meta property="og:title" content="9월 시간표 신청 · 리드인 장자호수점">
-<meta property="og:description" content="월~금 오후 2시~8시, 토요일 오전 10시~오후 1시, 요일과 시간을 선택해 신청해 주세요.">
-<meta property="og:image" content="https://leadin-class-schedule.vercel.app/reading_thumbnail.png">
-<meta property="og:url" content="https://leadin-class-schedule.vercel.app/">
+<meta property="og:title" content="8월 개학 후 시간표 신청 · 리드인 장자호수점">
+<meta property="og:description" content="월~금 오후 2시~8시, 요일과 시간을 선택해 신청해 주세요.">
+<meta property="og:image" content="./schedule_app_thumbnail.png">
 <meta name="twitter:card" content="summary_large_image">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
@@ -52,26 +51,6 @@
     border-bottom:1px dotted var(--line);padding-bottom:1px;
   }
   .footer-admin a:hover{color:var(--navy);}
-
-  .new-banner{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    background:#FDECEA;border:1.5px solid var(--coral);border-radius:10px;
-    padding:12px 16px;margin:16px 0;cursor:pointer;transition:.15s;
-  }
-  .new-banner:hover{background:#FBDFDB;}
-  .new-banner .txt{font-size:14px;font-weight:700;color:var(--coral);display:flex;align-items:center;gap:8px;}
-  .new-banner .dot{
-    display:inline-flex;align-items:center;justify-content:center;
-    min-width:20px;height:20px;padding:0 5px;border-radius:999px;
-    background:var(--coral);color:#fff;font-size:11.5px;font-weight:900;
-  }
-  .new-banner .arrow{font-size:13px;color:var(--coral);font-weight:700;}
-  .badge{
-    display:inline-flex;align-items:center;justify-content:center;
-    min-width:16px;height:16px;padding:0 4px;border-radius:999px;
-    background:var(--coral);color:#fff;font-size:10px;font-weight:900;
-    vertical-align:2px;margin-left:3px;
-  }
 
   .notice{
     background:var(--paper);border:1px solid var(--line);border-radius:10px;
@@ -142,6 +121,12 @@
     font-size:11px; line-height:1.3; font-weight:700; word-break:break-word;
   }
   td.cell.roster-cell .name-line + .name-line{ margin-top:1px; }
+
+  .seat-badge{
+    font-size:10.5px; font-weight:800; line-height:1.2;
+  }
+  .seat-badge.low{ color:var(--amber-deep); }
+  .seat-badge.full{ color:var(--coral); }
 
   .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--ink-soft);align-items:center;}
   .legend .sw{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid var(--line);}
@@ -236,46 +221,24 @@ const SAT_SPAN = WEEK_SLOTS.length / SAT_SLOTS.length; // 토요일 한 칸이 �
 const DURATIONS = [60,90,120,180]; // 분 단위 프리셋
 const DEFAULT_CAP = 14;
 const ADMIN_PIN = '3140';
-const SAT_OPEN_FOR_BOOKING = true; // 9월부터 토요일 수업 신청 오픈
+const SAT_OPEN_FOR_BOOKING = false; // 토요일 수업은 9월부터 시작 — 그 전까지는 신청 폼에서 선택 불가
 
-let registrations = []; // {id,name,school,day,start,duration,ts,pin}
+let registrations = []; // {id,name,school,day,start,duration,ts}
 let capacities = {};    // key(day-blockStart) -> cap
 let tab = 'parent';
 let rawPicks = {};      // day -> Set(blockStart) : 신청 폼에서 아직 제출 안 한 선택
 let selectedDuration = 60; // 숫자 또는 'custom'
 let formName = '';
+let checkName = '';
+let checkResults = null; // null=조회 전, 배열=조회 결과
 let formSchool = '';
-let formPin = '';       // 확인번호 4자리 (신청/변경 시 입력)
 let adminAuthed = false;
 let capEditMode = false;
 let nameViewMode = false; // 시간표에 학생 이름을 출석부처럼 바로 표시하는 모드 (관리자 전용)
+let logViewMode = false; // 전체 신청을 시간 순서대로 보는 모드 (선착순 확인용, 관리자 전용)
 let viewingCell = null; // "day-blockStart"
 let toastMsg = null;
 let toastTimer = null;
-let adminLastChecked = 0; // 관리자가 마지막으로 관리 탭을 확인한 시각 (모든 신청자 공용, Supabase에 저장)
-let sessionAdminCutoff = 0; // 이번에 관리 탭에 들어오기 '직전' 확인 시각 스냅샷 (이번 세션 안에서 "NEW" 표시용)
-
-let activityLog = []; // {id,ts,name,school,type:'created'|'updated'|'canceled',addedRuns,removedRuns} — 신청·변경·취소 기록
-
-// ---- 학부모 셀프 조회/변경 ----
-let editingKey = null;        // {name,pin} : 지금 수정 중인 기존 신청 (null이면 새 신청 작성 중)
-let editingOriginalKeys = null; // 조회 시점의 요일-시간 선택 상태(Set) — 변경 내역 비교용
-let lookupOpen = false;       // "이미 신청하셨나요?" 조회 폼 펼침 여부
-let lookupName = '';
-let lookupPin = '';
-
-// 이 기기가 이전에 관리자 비밀번호로 들어온 적이 있는지 (부모님 기기에는 절대 안 남음, 이 브라우저에만 저장)
-function isAdminDevice(){
-  try{ return localStorage.getItem('ldreadn_admin_device') === '1'; }
-  catch(e){ return false; }
-}
-function markAdminDevice(){
-  try{ localStorage.setItem('ldreadn_admin_device', '1'); }
-  catch(e){ /* 저장 안 돼도 앱 동작에는 지장 없음 */ }
-}
-function newRegCount(){
-  return activityLog.filter(a=> a.ts > adminLastChecked).length;
-}
 
 function timeLabel(m){
   const h = Math.floor(m/60), mm = m%60;
@@ -286,32 +249,24 @@ function timeLabel(m){
   return mm===0 ? `${period} ${dh}시` : `${period} ${dh}시 30분`;
 }
 function rangeLabel(start,dur){ return `${timeLabel(start)} ~ ${timeLabel(start+dur)}`; }
-function formatTs(ts){
+function cellKey(day,m){ return day+'-'+m; }
+function getCap(day,m){ const v = capacities[cellKey(day,m)]; return (v===undefined||v===null)?DEFAULT_CAP:v; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function tsLabel(ts){
   const d = new Date(ts);
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const dd = String(d.getDate()).padStart(2,'0');
   const hh = String(d.getHours()).padStart(2,'0');
   const mi = String(d.getMinutes()).padStart(2,'0');
-  return `${mm}/${dd} ${hh}:${mi}`;
+  const ss = String(d.getSeconds()).padStart(2,'0');
+  return `${mm}/${dd} ${hh}:${mi}:${ss}`;
 }
-function cellKey(day,m){ return day+'-'+m; }
-function getCap(day,m){ const v = capacities[cellKey(day,m)]; return (v===undefined||v===null)?DEFAULT_CAP:v; }
-function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 
 function getOverlapCount(day,blockStart){
   return registrations.filter(r=> r.day===day && blockStart>=r.start && blockStart<r.start+r.duration).length;
 }
 function getOverlapList(day,blockStart){
   return registrations.filter(r=> r.day===day && blockStart>=r.start && blockStart<r.start+r.duration);
-}
-// 학부모가 자기 자신의 기존 신청을 수정하는 중일 때, 그 학생 본인의 기존 칸은 정원 계산에서 빼줌
-// (자기 자신 때문에 자기 슬롯이 "마감"으로 보여서 다시 선택 못 하는 문제 방지)
-function getOverlapCountForBooking(day,blockStart){
-  let list = registrations.filter(r=> r.day===day && blockStart>=r.start && blockStart<r.start+r.duration);
-  if(editingKey){
-    list = list.filter(r=> !(r.name===editingKey.name && r.pin===editingKey.pin));
-  }
-  return list.length;
 }
 
 // ---- Supabase 연결 설정 ----
@@ -376,8 +331,6 @@ async function kvSet(key, value){
 async function loadData(){
   registrations = await kvGet('registrations', []);
   capacities = await kvGet('capacities', {});
-  adminLastChecked = await kvGet('adminLastChecked', 0);
-  activityLog = await kvGet('activityLog', []);
 }
 async function saveRegistrations(){
   const ok = await kvSet('registrations', registrations);
@@ -386,10 +339,6 @@ async function saveRegistrations(){
 async function saveCapacities(){
   const ok = await kvSet('capacities', capacities);
   if(!ok) showToast('정원 저장에 실패했어요.');
-}
-async function saveActivityLog(){
-  const ok = await kvSet('activityLog', activityLog);
-  if(!ok) showToast('변경 기록 저장에 실패했어요.');
 }
 
 function hex2rgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
@@ -428,12 +377,6 @@ function switchTab(t){
     if(pin === null) return;
     if(pin !== ADMIN_PIN){ alert('비밀번호가 올바르지 않아요.'); return; }
     adminAuthed = true;
-    markAdminDevice(); // 이 기기를 "관리자 기기"로 기억 → 다음부터 새 신청 배지가 이 기기에서만 보임
-  }
-  if(t==='admin'){
-    sessionAdminCutoff = adminLastChecked; // 이번 세션에서 "새로 생긴 기록" 하이라이트용 스냅샷
-    adminLastChecked = Date.now();
-    kvSet('adminLastChecked', adminLastChecked); // 확인 시각 저장 (화면 전환은 기다리지 않고 바로 진행)
   }
   tab = t; viewingCell = null; render();
 }
@@ -454,7 +397,7 @@ function runContaining(day,start){
   return run;
 }
 function isBlockFull(day,m){
-  return getOverlapCountForBooking(day,m) >= getCap(day,m);
+  return getOverlapCount(day,m) >= getCap(day,m);
 }
 function toggleSelect(day,start){
   if(day==='토' && !SAT_OPEN_FOR_BOOKING){
@@ -502,137 +445,41 @@ function removeChip(day,start,duration){
   for(let m=start; m<start+duration; m+=30) set.delete(m);
   render();
 }
-function clearAllPicks(){ rawPicks = {}; render(); }
 
-/* ---- 학부모 셀프 조회 / 변경 ---- */
-function flattenPicksToKeys(){
-  const keys = new Set();
-  DAYS.forEach(day=> dayPicks(day).forEach(m=> keys.add(cellKey(day,m))));
-  return keys;
-}
-function loadPicksFromRegs(regs){
-  rawPicks = {};
-  regs.forEach(r=>{
-    for(let m=r.start; m<r.start+r.duration; m+=30) dayPicks(r.day).add(m);
-  });
-}
-function keysToRuns(keySet){
-  const byDay = {};
-  keySet.forEach(k=>{
-    const idx = k.lastIndexOf('-');
-    const day = k.slice(0, idx), m = parseInt(k.slice(idx+1),10);
-    (byDay[day] = byDay[day]||[]).push(m);
-  });
-  const runs = [];
-  Object.keys(byDay).forEach(day=>{
-    const starts = byDay[day].sort((a,b)=>a-b);
-    let i=0;
-    while(i<starts.length){
-      let s=starts[i], e=starts[i];
-      while(i+1<starts.length && starts[i+1]===e+30){ i++; e=starts[i]; }
-      runs.push({day, start:s, duration:(e-s)+30});
-      i++;
-    }
-  });
-  return runs;
-}
-function runsLabel(runs){
-  if(!runs || runs.length===0) return '';
-  return runs.map(r=> `${r.day} ${rangeLabel(r.start,r.duration)}`).join(', ');
-}
-
-function openLookup(){ lookupOpen = true; lookupName=''; lookupPin=''; render(); }
-function closeLookup(){ lookupOpen = false; render(); }
-
-async function doLookup(){
-  const name = lookupName.trim();
-  const pin = lookupPin.trim();
+function doCheckRegistration(){
+  const name = checkName.trim();
   if(!name){ showToast('아이 이름을 입력해 주세요.'); return; }
-  if(!/^\d{4}$/.test(pin)){ showToast('확인번호 4자리(숫자)를 정확히 입력해 주세요.'); return; }
-
-  // 1) 이름+확인번호가 정확히 일치하는 신청부터 찾음
-  let matches = registrations.filter(r=> r.name===name && r.pin===pin);
-  let claimedLegacy = false;
-
-  if(matches.length===0){
-    // 2) 없으면, 같은 이름인데 확인번호가 아직 없는 "예전 신청"이 있는지 확인
-    const legacy = registrations.filter(r=> r.name===name && !r.pin);
-    if(legacy.length>0){
-      legacy.forEach(r=> r.pin = pin); // 지금 입력한 번호를 앞으로 쓸 확인번호로 등록
-      await saveRegistrations();
-      matches = legacy;
-      claimedLegacy = true;
-    }
-  }
-
-  if(matches.length===0){
-    showToast('일치하는 신청 내역을 찾을 수 없어요. 이름과 확인번호를 다시 확인해 주세요.');
-    return;
-  }
-
-  editingKey = { name, pin };
-  formName = name;
-  formSchool = matches[0].school || '';
-  formPin = pin;
-  loadPicksFromRegs(matches);
-  editingOriginalKeys = flattenPicksToKeys();
-  selectedDuration = 'custom'; // 기존 신청은 길이가 섞여 있을 수 있어 혼합 모드로 시작
-  lookupOpen = false;
-  const schoolTag = matches[0].school ? ` (${matches[0].school})` : '';
-  showToast(claimedLegacy
-    ? `${name}${schoolTag} 학생의 예전 신청을 찾았어요. 방금 입력하신 번호가 앞으로 쓰실 확인번호로 등록됐어요.`
-    : `${name} 학생의 신청 내역을 불러왔어요.`);
+  checkResults = registrations
+    .filter(r=> r.name.trim() === name)
+    .sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start-b.start);
   render();
 }
 
-function cancelEditing(){
-  editingKey = null; editingOriginalKeys = null;
-  formName=''; formSchool=''; formPin=''; rawPicks={}; selectedDuration=60;
-  render();
+function renderCheckResults(){
+  if(checkResults===null) return '';
+  if(checkResults.length===0){
+    return `<div class="hint" style="margin-top:10px;color:var(--coral);">'${escapeHtml(checkName.trim())}' 이름으로 신청된 내역이 없어요. 이름을 신청 때와 정확히 똑같이 입력하셨는지 확인해 주세요.</div>`;
+  }
+  let html = `<div class="chips" style="margin-top:12px;">`;
+  checkResults.forEach(r=>{
+    html += `<div class="chip" style="background:var(--sage,#5C7A5F);">${r.day} ${rangeLabel(r.start,r.duration)} (${r.duration}분)</div>`;
+  });
+  html += `</div>`;
+  return html;
 }
 
-async function saveForm(){
+async function submitForm(){
   const name = formName.trim();
   if(!name){ showToast('아이 이름을 입력해 주세요.'); return; }
-  const pin = formPin.trim();
-  if(!/^\d{4}$/.test(pin)){ showToast('확인번호 4자리(숫자)를 입력해 주세요.'); return; }
-
-  const isEdit = !!editingKey;
   const arr = mergedSelections();
-  const newKeys = flattenPicksToKeys();
-
-  if(!isEdit && arr.length===0){
-    showToast('요일과 시간을 한 곳 이상 선택해 주세요.');
-    return;
-  }
-  if(isEdit && arr.length===0){
-    if(!window.confirm(`${name} 학생의 신청을 전부 취소할까요?`)) return;
-  }
-
+  if(arr.length===0){ showToast('요일과 시간을 한 곳 이상 선택해 주세요.'); return; }
   const ts = Date.now();
-  const school = formSchool.trim();
-
-  if(isEdit){
-    registrations = registrations.filter(r=> !(r.name===editingKey.name && r.pin===editingKey.pin));
-  }
   arr.forEach(s=>{
-    registrations.push({ id:uid(), name, school, day:s.day, start:s.start, duration:s.duration, ts, pin });
+    registrations.push({ id:uid(), name, school:formSchool.trim(), day:s.day, start:s.start, duration:s.duration, ts });
   });
   await saveRegistrations();
-
-  const addedRuns = isEdit ? keysToRuns(new Set([...newKeys].filter(k=>!editingOriginalKeys.has(k)))) : arr.map(s=>({day:s.day,start:s.start,duration:s.duration}));
-  const removedRuns = isEdit ? keysToRuns(new Set([...editingOriginalKeys].filter(k=>!newKeys.has(k)))) : [];
-  activityLog.push({
-    id: uid(), ts, name, school,
-    type: isEdit ? (arr.length===0 ? 'canceled' : 'updated') : 'created',
-    addedRuns, removedRuns
-  });
-  await saveActivityLog();
-
-  const wasEdit = isEdit;
-  formName=''; formSchool=''; formPin=''; rawPicks={}; selectedDuration=60;
-  editingKey=null; editingOriginalKeys=null;
-  showToast(wasEdit ? '변경사항이 저장됐어요.' : '신청이 완료됐어요. 감사합니다!');
+  formName=''; formSchool=''; rawPicks={};
+  showToast('신청이 완료됐어요. 감사합니다!');
 }
 
 async function deleteRegistration(id){
@@ -644,7 +491,39 @@ async function deleteRegistration(id){
 
 function toggleCapEdit(){ capEditMode = !capEditMode; viewingCell=null; render(); }
 function toggleNameView(){ nameViewMode = !nameViewMode; render(); }
+function toggleLogView(){ logViewMode = !logViewMode; render(); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderLogTable(){
+  const list = registrations.slice().sort((a,b)=> a.ts-b.ts);
+  let html = `<section class="card">
+    <h2>전체 신청 기록 (선착순 확인용)</h2>
+    <div class="hint">가장 먼저 신청한 순서대로 나열돼요. 특정 시간대에 누가 먼저 신청했는지 다툼이 있을 때 확인하세요.</div>`;
+  if(list.length===0){
+    html += `<div class="empty">아직 신청이 없어요.</div>`;
+  } else {
+    html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="border-bottom:2px solid var(--navy);">
+        <th style="text-align:left;padding:6px 8px;">순번</th>
+        <th style="text-align:left;padding:6px 8px;">신청 시각</th>
+        <th style="text-align:left;padding:6px 8px;">이름</th>
+        <th style="text-align:left;padding:6px 8px;">학교/학년</th>
+        <th style="text-align:left;padding:6px 8px;">요일 · 시간</th>
+      </tr></thead><tbody>`;
+    list.forEach((r,i)=>{
+      html += `<tr style="border-bottom:1px solid var(--paper);">
+        <td style="padding:6px 8px;color:var(--ink-soft);">${i+1}</td>
+        <td style="padding:6px 8px;font-weight:700;">${tsLabel(r.ts)}</td>
+        <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
+        <td style="padding:6px 8px;color:var(--ink-soft);">${escapeHtml(r.school||'')}</td>
+        <td style="padding:6px 8px;">${r.day} ${rangeLabel(r.start,r.duration)} (${r.duration}분)</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+  html += `</section>`;
+  return html;
+}
 
 async function handleAdminCellClick(day,m){
   if(capEditMode){
@@ -670,16 +549,27 @@ function buildCellTd(mode,day,m,rowspan){
   const tcolor = textColorFor(cnt,cap);
   let cls = 'cell';
   let onclick = '';
+  let parentBadge = '';
   if(mode==='parent'){
     const satLocked = (day==='토' && !SAT_OPEN_FOR_BOOKING);
     const picked = !satLocked && dayPicks(day).has(m);
-    // 편집 중이면 본인의 기존 슬롯은 정원 계산에서 빼서, 자기 자리 때문에 자기가 못 고르는 문제를 방지
-    const bookingCnt = getOverlapCountForBooking(day,m);
-    const full = isOver(bookingCnt,cap);
+    const full = isOver(cnt,cap);
     const disabled = satLocked || (!picked && (full || (selectedDuration!=='custom' && (m+selectedDuration > close))));
     if(picked) cls += ' selected';
     else if(disabled) cls += ' disabled';
     onclick = satLocked ? `showToast('토요일 수업은 9월부터 신청할 수 있어요.')` : `toggleSelect('${day}',${m})`;
+
+    // 잔여석 표시: 넉넉할 땐 아무 표시 없음, 3석 이하로 남았을 때만 임박 안내, 마감이면 '마감'
+    if(!satLocked){
+      if(full){
+        parentBadge = `<div class="seat-badge full">마감</div>`;
+      } else if(!picked){
+        const remaining = cap - cnt;
+        if(remaining>0 && remaining<=3){
+          parentBadge = `<div class="seat-badge low">잔여 ${remaining}석</div>`;
+        }
+      }
+    }
   } else {
     onclick = `handleAdminCellClick('${day}',${m})`;
   }
@@ -699,8 +589,8 @@ function buildCellTd(mode,day,m,rowspan){
   } else if(mode==='admin'){
     inner = `<div class="count" style="color:${tcolor}">${cnt>0?cnt:''}${over?'!':''}</div>`;
   } else {
-    // 학부모 화면: 숫자·색상 없이, 신청가능/마감 상태만 보여줌
-    inner = '';
+    // 학부모 화면: 숫자·색상 없이, 신청가능/마감/잔여석 임박 정도만 보여줌
+    inner = parentBadge;
   }
 
   return `<td class="${cls}"${rs} style="background:${bg}" onclick="${onclick}">${inner}</td>`;
@@ -740,46 +630,24 @@ function renderParentTab(){
   let html = `
   <div class="notice">
     8월 18일(화)부터 평일 오후 2시~오후 8시에 수업합니다. 사전 수업 준비와 원활한 진행을 위해 수업 시간을 신청해 주세요. 시간대별 정원이 다 차면 그 시간은 더 이상 신청할 수 없어요.<br>
-    <b>9월부터 토요일 수업(오전 10시~오후 1시)도 신청받습니다.</b> 토요일에 오는 친구도 지금 함께 신청해 주세요.
+    <b>토요일 수업은 9월부터 시작합니다.</b> 지금은 평일만 신청할 수 있어요.
   </div>
-  `;
 
-  if(editingKey){
-    html += `
-    <div class="notice" style="background:#FDECEA;border-color:var(--coral);">
-      <b>${escapeHtml(editingKey.name)}</b> 학생의 신청 내용을 수정하고 있어요. 아래에서 시간을 추가·삭제한 뒤 저장해 주세요.<br>
-      <a href="javascript:void(0)" onclick="cancelEditing()" style="color:var(--coral);font-weight:700;">취소하고 새 신청 화면으로 돌아가기</a>
-    </div>`;
-  } else {
-    html += `
-    <div style="text-align:center;margin:14px 0;">
-      <a href="javascript:void(0)" onclick="${lookupOpen? 'closeLookup()':'openLookup()'}" style="font-size:13px;color:var(--navy);font-weight:700;border-bottom:1.5px dotted var(--navy);padding-bottom:1px;">
-        ${lookupOpen? '조회 닫기 ✕' : '이미 신청하셨나요? 확인 · 변경하기 →'}
-      </a>
-    </div>`;
-    if(lookupOpen){
-      html += `
-      <section class="card">
-        <h2>신청 내역 확인</h2>
-        <div class="hint">신청할 때 입력했던 <b>아이 이름</b>과 <b>확인번호 4자리</b>를 입력해 주세요.<br>
-        아직 확인번호가 없는 예전 신청이시라면, 이름을 입력하고 앞으로 쓰실 번호 4자리를 새로 만들어 입력해 주세요. 그 번호가 자동으로 등록돼요.</div>
-        <div class="row2">
-          <div>
-            <label>아이 이름</label>
-            <input type="text" value="${lookupName.replace(/"/g,'&quot;')}" oninput="lookupName=this.value" placeholder="예: 김민준">
-          </div>
-          <div>
-            <label>확인번호 (4자리)</label>
-            <input type="text" inputmode="numeric" maxlength="4" value="${lookupPin.replace(/"/g,'&quot;')}" oninput="lookupPin=this.value.replace(/[^0-9]/g,'').slice(0,4)" placeholder="예: 1234">
-          </div>
-        </div>
-        <button class="btn-primary" onclick="doLookup()">조회하기</button>
-      </section>`;
-      return html; // 조회 중에는 아래 신청 폼을 같이 보여주지 않음
-    }
-  }
+  <section class="card">
+    <h2>이미 신청하셨나요?</h2>
+    <div class="hint">신청할 때 입력했던 아이 이름을 똑같이 입력하시면, 언제 신청하셨는지 확인할 수 있어요.</div>
+    <div class="row2">
+      <div>
+        <label>아이 이름</label>
+        <input type="text" value="${checkName.replace(/"/g,'&quot;')}" oninput="checkName=this.value" placeholder="예: 김민준" onkeydown="if(event.key==='Enter'){doCheckRegistration();}">
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="btn-ghost" style="width:100%;padding:11px;" onclick="doCheckRegistration()">신청 내역 확인하기</button>
+      </div>
+    </div>
+    ${renderCheckResults()}
+  </section>
 
-  html += `
   <section class="card">
     <h2>1. 아이 정보</h2>
     <div class="row2">
@@ -791,11 +659,6 @@ function renderParentTab(){
         <label>학교 / 학년 (선택)</label>
         <input type="text" value="${formSchool.replace(/"/g,'&quot;')}" oninput="formSchool=this.value" placeholder="예: OO초 4학년">
       </div>
-    </div>
-    <div>
-      <label>확인번호 (4자리) *</label>
-      <input type="text" inputmode="numeric" maxlength="4" style="max-width:160px;" value="${formPin.replace(/"/g,'&quot;')}" oninput="formPin=this.value.replace(/[^0-9]/g,'').slice(0,4)" placeholder="예: 1234">
-      <div class="hint" style="margin-top:6px;">나중에 신청 내용을 확인하거나 변경할 때 필요해요. 학부모님이 기억하기 쉬운 번호로 만들어 주세요 (예: 생일 뒷자리 4개).</div>
     </div>
   </section>
 
@@ -810,7 +673,7 @@ function renderParentTab(){
 
   <section class="card">
     <h2>3. 요일 · 시간 선택 (여러 칸 선택 가능)</h2>
-    <div class="hint">왼쪽 시간은 <b>평일(월~금)</b> 기준, 오른쪽 시간은 <b>토요일</b> 기준이에요. 토요일 칸은 표 전체 높이를 그대로 써서 오전 10시~오후 1시가 다 들어가요.</div>
+    <div class="hint">왼쪽 시간은 <b>평일(월~금)</b> 기준, 오른쪽 시간은 <b>토요일</b> 기준이에요. 토요일 칸은 표 전체 높이를 그대로 써서 오전 10시~오후 1시가 다 들어가요. (토요일은 9월부터 시작)</div>
     ${buildGrid('parent')}
     <div class="legend">
       <span>✓ = 선택한 시간 · 같은 칸을 다시 누르면 그 수업이 취소돼요</span>
@@ -829,8 +692,7 @@ function renderParentTab(){
 
   html += `
   <section class="card">
-    <button class="btn-primary" onclick="saveForm()">${editingKey? '변경사항 저장하기' : '신청 완료하기'}</button>
-    ${editingKey? `<button class="btn-ghost" style="width:100%;margin-top:10px;justify-content:center;" onclick="clearAllPicks()">이 학생 수업 전체 취소하기</button>` : ''}
+    <button class="btn-primary" onclick="submitForm()">신청 완료하기</button>
   </section>
   `;
   return html;
@@ -838,6 +700,7 @@ function renderParentTab(){
 
 function renderAdminTab(){
   const total = registrations.length;
+  const uniqueStudents = new Set(registrations.map(r=> r.name.trim())).size;
   const byDay = {};
   DAYS.forEach(d=> byDay[d] = registrations.filter(r=>r.day===d).length);
   const busiest = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
@@ -845,14 +708,18 @@ function renderAdminTab(){
   let html = `
   <div class="admin-toolbar">
     <div class="admin-stats">
-      <div class="stat"><div class="num">${total}</div><div class="lbl">전체 신청</div></div>
+      <div class="stat"><div class="num">${uniqueStudents}</div><div class="lbl">신청 학생 수</div></div>
+      <div class="stat"><div class="num">${total}</div><div class="lbl">전체 신청 건수</div></div>
       <div class="stat"><div class="num">${busiest?busiest[0]:'-'}</div><div class="lbl">가장 붐비는 요일</div></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn-ghost ${nameViewMode?'on':''}" onclick="toggleNameView()">${nameViewMode? '숫자로 보기':'이름으로 보기 (출석부)'}</button>
       <button class="btn-ghost ${capEditMode?'on':''}" onclick="toggleCapEdit()">${capEditMode? '정원 설정 중 (칸 클릭)':'정원 설정하기'}</button>
+      <button class="btn-ghost ${logViewMode?'on':''}" onclick="toggleLogView()">${logViewMode? '기록 닫기':'전체 신청 기록 (선착순 확인)'}</button>
     </div>
   </div>
+
+  ${logViewMode ? renderLogTable() : ''}
 
   <section class="card">
     <h2>시간표 인쇄</h2>
@@ -883,13 +750,13 @@ function renderAdminTab(){
   if(!capEditMode && viewingCell){
     const [d,mStr] = viewingCell.split('-');
     const m = parseInt(mStr,10);
-    const list = getOverlapList(d,m);
-    html += `<div class="roster"><h3>${d}요일 ${timeLabel(m)} 수업 중인 아이 (${list.length}명 / 정원 ${getCap(d,m)}명)</h3>`;
+    const list = getOverlapList(d,m).slice().sort((a,b)=> a.ts-b.ts); // 선착순 확인용: 신청 시각 순
+    html += `<div class="roster"><h3>${d}요일 ${timeLabel(m)} 수업 중인 아이 (${list.length}명 / 정원 ${getCap(d,m)}명) · 신청 순서대로</h3>`;
     if(list.length===0){ html += `<div class="empty">이 시간에 수업 중인 아이가 없어요.</div>`; }
     else{
-      list.forEach(r=>{
+      list.forEach((r,i)=>{
         html += `<div class="roster-row">
-          <div><span class="name">${r.name}</span> <span class="meta">${r.school?('· '+r.school+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분)</span></div>
+          <div><b>${i+1}.</b> <span class="name">${escapeHtml(r.name)}</span> <span class="meta">${r.school?('· '+escapeHtml(r.school)+' · '):'· '}${rangeLabel(r.start,r.duration)} (${r.duration}분) · <b>${tsLabel(r.ts)}</b> 신청</span></div>
           <button class="del-btn" onclick="deleteRegistration('${r.id}')">삭제</button>
         </div>`;
       });
@@ -898,38 +765,10 @@ function renderAdminTab(){
   }
   html += `</section>`;
 
-  html += `
-  <section class="card">
-    <h2>최근 변경 내역</h2>
-    <div class="hint">학부모가 새로 신청하거나, 스스로 시간표를 확인·변경·취소하면 여기에 자동으로 기록돼요.</div>
-  `;
-  if(activityLog.length===0){
-    html += `<div class="empty">아직 기록이 없어요.</div>`;
-  } else {
-    const sorted = [...activityLog].sort((a,b)=> b.ts - a.ts).slice(0,50);
-    sorted.forEach(a=>{
-      const isNew = a.ts > sessionAdminCutoff;
-      const typeLabel = a.type==='created' ? '신청' : (a.type==='canceled' ? '취소' : '변경');
-      const added = runsLabel(a.addedRuns);
-      const removed = runsLabel(a.removedRuns);
-      html += `<div class="roster-row" style="align-items:flex-start;${isNew?'background:#FDECEA;border-radius:6px;padding:8px;':''}">
-        <div>
-          ${isNew? `<span class="badge" style="margin-left:0;margin-right:6px;">N</span>`:''}
-          <span class="name">${escapeHtml(a.name)}</span>
-          <span class="meta">${a.school? ('· '+escapeHtml(a.school)+' · '):'· '}${typeLabel} · ${formatTs(a.ts)}</span>
-          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:3px;">
-            ${added? `추가: ${escapeHtml(added)}` : ''}${added&&removed? ' / ' : ''}${removed? `삭제: ${escapeHtml(removed)}` : ''}
-            ${(!added && !removed)? '변경된 시간 없음' : ''}
-          </div>
-        </div>
-      </div>`;
-    });
-  }
-  html += `</section>`;
+  const noticeText = `[8월 개학 후 시간표 신청 안내]
 
-  const noticeText = `[9월 시간표 신청 안내]
+8월 3주차부터 평일은 오후 2시~오후 8시, 토요일은 오전 10시~오후 1시 사이에 등원합니다.
 아래 링크에서 아이 이름, 수업 시간(60/90/120/180분 또는 기타), 원하는 요일과 시간을 선택해 신청해 주세요.
-9월부터 토요일 수업도 함께 신청받으니, 토요일에 오는 친구도 지금 신청해 주세요.
 (칸 색이 진할수록 이미 신청이 몰린 시간대예요)
 
 신청 링크: (이 앱 공유 링크를 붙여넣어 주세요)
@@ -1007,20 +846,15 @@ function render(){
   app.innerHTML = `
     <div class="masthead">
       <div>
-        <div class="title">9월 시간표 신청</div>
-        <div class="sub">월~금 오후 2시~8시 · 토요일 오전 10시~오후 1시, 요일과 시간을 선택해 신청해 주세요.</div>
+        <div class="title">8월 개학 후 시간표 신청</div>
+        <div class="sub">월~금 오후 2시~8시, 9월 시간표 신청은 8월 4주에 다시 공지 드려요~!</div>
       </div>
     </div>
-    ${(tab==='parent' && isAdminDevice() && newRegCount()>0) ? `
-    <div class="new-banner" onclick="switchTab('admin')">
-      <span class="txt"><span class="dot">${newRegCount()}</span> 새로운 신청이 있어요</span>
-      <span class="arrow">확인하기 →</span>
-    </div>` : ''}
     ${tab==='parent' ? renderParentTab() : renderAdminTab()}
     ${toastMsg? `<div class="toast">${toastMsg}</div>` : ''}
     <div class="footer-admin">
       ${tab==='parent'
-        ? `<a href="javascript:void(0)" onclick="switchTab('admin')">관리자${(isAdminDevice() && newRegCount()>0) ? `<span class="badge">${newRegCount()}</span>` : ''}</a>`
+        ? `<a href="javascript:void(0)" onclick="switchTab('admin')">관리자</a>`
         : `<a href="javascript:void(0)" onclick="switchTab('parent')">← 처음 화면으로</a>`}
     </div>
   `;
