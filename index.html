@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>8월 개학 후 시간표 신청 · 리드인 장자호수점</title>
-<meta name="description" content="리드인 장자호수점 8월 개학 후 시간표 신청 (월~금 오후 2시~8시)">
+<title>2026년 2학기 시간표 · 리드인 장자호수점</title>
+<meta name="description" content="리드인 장자호수점 2026년 2학기 시간표 신청 (월~금 오후 2시~8시, 토 10시~1시)">
 <meta property="og:type" content="website">
-<meta property="og:title" content="8월 개학 후 시간표 신청 · 리드인 장자호수점">
-<meta property="og:description" content="월~금 오후 2시~8시, 요일과 시간을 선택해 신청해 주세요.">
+<meta property="og:title" content="2026년 2학기 시간표 · 리드인 장자호수점">
+<meta property="og:description" content="월~금 오후 2시~8시, 토 10시~1시. 요일과 시간을 선택해 신청해 주세요.">
 <meta property="og:image" content="./schedule_app_thumbnail.png">
 <meta name="twitter:card" content="summary_large_image">
 <style>
@@ -243,7 +243,7 @@ const SAT_SPAN = WEEK_SLOTS.length / SAT_SLOTS.length; // 토요일 한 칸이 �
 const DURATIONS = [60,90,120,180]; // 분 단위 프리셋
 const DEFAULT_CAP = 14;
 const ADMIN_PIN = '3140';
-const SAT_OPEN_FOR_BOOKING = false; // 토요일 수업은 9월부터 시작 — 그 전까지는 신청 폼에서 선택 불가
+const SAT_OPEN_FOR_BOOKING = true; // 2026년 2학기부터 토요일도 정상 운영 — 신청 가능
 
 let registrations = []; // {id,name,school,day,start,duration,ts}
 let capacities = {};    // key(day-blockStart) -> cap
@@ -677,8 +677,7 @@ function buildGrid(mode){
 function renderParentTab(){
   let html = `
   <div class="notice">
-    8월 18일(화)부터 평일 오후 2시~오후 8시에 수업합니다. 사전 수업 준비와 원활한 진행을 위해 수업 시간을 신청해 주세요. 시간대별 정원이 다 차면 그 시간은 더 이상 신청할 수 없어요.<br>
-    <b>토요일 수업은 9월부터 시작합니다.</b> 지금은 평일만 신청할 수 있어요.
+    사전 수업 준비와 원활한 진행을 위해 수업 시간을 신청해 주세요. 시간대별 정원이 있어서, 다 차면 그 시간은 마감돼요!
   </div>
 
   <section class="card">
@@ -721,7 +720,7 @@ function renderParentTab(){
 
   <section class="card">
     <h2>3. 요일 · 시간 선택 (여러 칸 선택 가능)</h2>
-    <div class="hint">왼쪽 시간은 <b>평일(월~금)</b> 기준, 오른쪽 시간은 <b>토요일</b> 기준이에요. 토요일 칸은 표 전체 높이를 그대로 써서 오전 10시~오후 1시가 다 들어가요. (토요일은 9월부터 시작)</div>
+    <div class="hint">왼쪽 시간은 <b>평일(월~금)</b> 기준, 오른쪽 시간은 <b>토요일</b> 기준이에요. 토요일 칸은 표 전체 높이를 그대로 써서 오전 10시~오후 1시가 다 들어가요.</div>
     ${buildGrid('parent')}
     <div class="legend">
       <span>✓ = 선택한 시간 · 같은 칸을 다시 누르면 그 수업이 취소돼요</span>
@@ -823,11 +822,11 @@ function renderAdminTab(){
   }
   html += `</section>`;
 
-  const noticeText = `[8월 개학 후 시간표 신청 안내]
+  const noticeText = `[2026년 2학기 시간표 신청 안내]
 
-8월 3주차부터 평일은 오후 2시~오후 8시, 토요일은 오전 10시~오후 1시 사이에 등원합니다.
+평일은 오후 2시~오후 8시, 토요일은 오전 10시~오후 1시 사이에 등원합니다.
 아래 링크에서 아이 이름, 수업 시간(60/90/120/180분 또는 기타), 원하는 요일과 시간을 선택해 신청해 주세요.
-(칸 색이 진할수록 이미 신청이 몰린 시간대예요)
+(시간대별 정원이 있어서, 다 차면 그 시간은 마감돼요)
 
 신청 링크: (이 앱 공유 링크를 붙여넣어 주세요)
 
@@ -958,8 +957,8 @@ function render(){
   app.innerHTML = `
     <div class="masthead">
       <div>
-        <div class="title">8월 개학 후 시간표 신청</div>
-        <div class="sub">월~금 오후 2시~8시, 9월 시간표 신청은 8월 4주에 다시 공지 드려요~!</div>
+        <div class="title">2026년 2학기 시간표</div>
+        <div class="sub">월~금 오후 2시~8시, 토 10시~1시</div>
       </div>
     </div>
     ${tab==='parent' ? renderParentTab() : renderAdminTab()}
