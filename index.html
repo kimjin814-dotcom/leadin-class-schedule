@@ -184,6 +184,7 @@
   #printArea{ display:none; }
 
   @media print{
+    @page{ size: landscape; margin: 10mm; }
     body *{ visibility:hidden; }
     #printArea, #printArea *{ visibility:visible; }
     #printArea{
@@ -199,6 +200,21 @@
     table.print-table{ width:100%; border-collapse:collapse; font-size:11.5px; }
     table.print-table th, table.print-table td{ border:1px solid #999; padding:4px 8px; text-align:left; }
     table.print-table th{ background:#f0f0f0; }
+
+    /* 표(시트) 형식 인쇄 */
+    table.print-grid{ width:100%; border-collapse:collapse; table-layout:fixed; }
+    table.print-grid thead{ display:table-header-group; }
+    table.print-grid th, table.print-grid td{
+      border:1px solid #666; padding:4px 6px; text-align:left; vertical-align:top;
+      font-size:11px; word-break:break-word;
+    }
+    table.print-grid th{ background:#eee; text-align:center; font-size:12px; font-weight:900; }
+    table.print-grid td.pg-corner{ background:#eee; }
+    table.print-grid td.pg-time{ width:56px; font-weight:700; white-space:nowrap; text-align:right; font-size:10.5px; }
+    table.print-grid td.pg-cell{ min-height:34px; height:34px; }
+    table.print-grid td.pg-satlabel{ width:70px; font-weight:700; font-size:10.5px; }
+    .pg-memo{ margin-top:14px; border:1.5px solid #666; min-height:60mm; padding:6px 8px; }
+    .pg-memo-title{ font-size:12px; font-weight:900; margin-bottom:4px; }
   }
 </style>
 <script src="./supabase.js"></script>
@@ -723,13 +739,14 @@ function renderAdminTab(){
 
   <section class="card">
     <h2>시간표 인쇄</h2>
-    <div class="hint">선생님이 그날 수업 준비할 때 보기 편하게, 시간 순서대로 학생 이름을 목록으로 인쇄해요.</div>
+    <div class="hint">'목록으로 인쇄'는 시간 순서대로 이름을 쭉 나열해서 보기 편하고, '표로 인쇄'는 지금 화면 그대로의 칸 모양이라 매주 메모하면서 벽에 붙여두기 좋아요.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <select id="printDaySelect" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--cream);">
         <option value="all">전체 요일 (월~토)</option>
         ${DAYS.map(d=>`<option value="${d}">${d}요일만</option>`).join('')}
       </select>
-      <button class="btn-primary" style="width:auto;padding:10px 20px;" onclick="printSchedule()">인쇄하기</button>
+      <button class="btn-primary" style="width:auto;padding:10px 20px;" onclick="printSchedule()">목록으로 인쇄</button>
+      <button class="btn-ghost" style="padding:10px 20px;" onclick="printGridSchedule()">표(시트)로 인쇄</button>
     </div>
   </section>
 
@@ -830,6 +847,60 @@ function printSchedule(){
 
   let html = `<div class="print-header"><div class="print-title">리드인 장자호수점 · 수업 시간표</div><div class="print-date">${dateStr}</div></div>`;
   days.forEach(d=> html += buildPrintDaySection(d));
+
+  let area = document.getElementById('printArea');
+  if(!area){
+    area = document.createElement('div');
+    area.id = 'printArea';
+    document.body.appendChild(area);
+  }
+  area.innerHTML = html;
+  window.print();
+}
+
+function buildPrintGridTable(days){
+  const showSat = days.includes('토');
+  let html = `<table class="print-grid"><thead><tr><th class="pg-corner"></th>`;
+  days.forEach(d=> html += `<th>${d}</th>`);
+  if(showSat) html += `<th class="pg-corner">토요일 시간</th>`;
+  html += `</tr></thead><tbody>`;
+
+  WEEK_SLOTS.forEach((m,i)=>{
+    html += `<tr><td class="pg-time">${m%60===0? timeLabel(m):''}</td>`;
+    days.forEach(d=>{
+      if(d==='토'){
+        if(i % SAT_SPAN === 0){
+          const satM = SAT_SLOTS[i/SAT_SPAN];
+          const starters = registrations.filter(r=> r.day==='토' && r.start===satM);
+          html += `<td class="pg-cell" rowspan="${SAT_SPAN}">${starters.map(r=>escapeHtml(r.name)).join('<br>')}</td>`;
+        }
+      } else {
+        const starters = registrations.filter(r=> r.day===d && r.start===m);
+        html += `<td class="pg-cell">${starters.map(r=>escapeHtml(r.name)).join('<br>')}</td>`;
+      }
+    });
+    if(showSat && i % SAT_SPAN === 0){
+      const satM = SAT_SLOTS[i/SAT_SPAN];
+      const lbl = satM % 60 === 0 ? timeLabel(satM) : '';
+      html += `<td class="pg-satlabel" rowspan="${SAT_SPAN}">${lbl}</td>`;
+    }
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  return html;
+}
+
+function printGridSchedule(){
+  const sel = document.getElementById('printDaySelect');
+  const val = sel ? sel.value : 'all';
+  const days = (val==='all') ? DAYS : [val];
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일 출력`;
+  const dayTitle = (val==='all') ? '전체 요일' : `${val}요일`;
+
+  let html = `<div class="print-header"><div class="print-title">리드인 장자호수점 · 수업 시간표 (${dayTitle})</div><div class="print-date">${dateStr}</div></div>`;
+  html += buildPrintGridTable(days);
+  html += `<div class="pg-memo"><div class="pg-memo-title">메모</div></div>`;
 
   let area = document.getElementById('printArea');
   if(!area){
