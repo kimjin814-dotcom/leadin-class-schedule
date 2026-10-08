@@ -187,6 +187,46 @@
     padding:12px;font-size:13px;line-height:1.7;font-family:inherit;color:var(--ink);background:var(--cream);resize:vertical;
   }
   .copy-row{display:flex;justify-content:flex-end;margin-top:8px;}
+
+  /* ---- 일일 루틴 (상담 메모 + 학생 체크리스트) ---- */
+  input[type=date]{
+    padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;
+    font-family:inherit;font-size:13.5px;background:var(--cream);color:var(--ink);
+  }
+  .rt-head{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  .rt-day{font-size:14px;color:var(--navy-dark);margin-left:4px;}
+  .rt-save{font-size:11.5px;color:var(--ink-soft);margin-left:auto;}
+  .rt-h3{font-size:14.5px;margin:18px 0 8px;color:var(--navy-dark);}
+  .rt-h3 .rt-sub{font-size:11.5px;font-weight:500;color:var(--ink-soft);font-family:'Noto Sans KR',sans-serif;}
+  .rt-memo{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;background:var(--cream);}
+  .rt-memo-top{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .rt-memo-top input{flex:1;}
+  textarea.rt-text{
+    width:100%;min-height:68px;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;
+    font-size:13.5px;line-height:1.6;font-family:inherit;background:#fff;color:var(--ink);resize:vertical;
+  }
+  textarea.rt-text:focus{outline:none;border-color:var(--navy);}
+  .rt-sums{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+  .rt-sum{display:inline-flex;gap:6px;padding:5px 11px;border-radius:999px;background:var(--paper);font-size:12px;color:var(--ink);}
+  .rt-sum.ok{background:#E3F0DD;color:#2F6B3A;}
+  details.rt-missing, details.rt-items{margin:8px 0;font-size:12.5px;color:var(--ink);}
+  details.rt-missing summary, details.rt-items summary{cursor:pointer;font-weight:700;color:var(--navy);}
+  .rt-missing-body{margin-top:6px;line-height:1.7;}
+  .rt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;margin-top:8px;}
+  .rt-card{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;}
+  .rt-card.rt-done{background:#EEF5EC;border-color:#BFD8B0;}
+  .rt-name{font-size:12.5px;font-weight:800;color:var(--navy-dark);}
+  .rt-btns{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
+  .rt-btn{
+    font-size:10.5px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);background:#fff;
+    color:var(--ink-soft);cursor:pointer;font-family:inherit;font-weight:700;
+  }
+  .rt-btn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .rt-item-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--paper);}
+  td.cell.roster-bottom{cursor:default;background:#fff !important;}
+  td.cell.roster-bottom:hover{filter:none;}
+  .rb-count{font-size:10.5px;font-weight:900;color:var(--navy);margin-bottom:2px;}
+  .rb-names{font-size:10.5px;line-height:1.5;color:var(--ink);word-break:keep-all;}
   #printArea{ display:none; }
 
   @media print{
@@ -345,6 +385,24 @@ async function kvGet(key, fallback){
     return JSON.parse(data.value);
   }catch(e){ return fallback; }
 }
+
+// 일일 루틴처럼 '불러오기에 실패했는데 빈 값으로 덮어써 버리는 사고'가 나면 안 되는 데이터용:
+// 실패(ok:false)와 '아직 데이터 없음'(ok:true, value:null)을 구분해서 돌려줌
+async function kvGetStrict(key){
+  if(!sb) return { ok:false };
+  try{
+    const result = await withTimeout(
+      sb.from('app_kv').select('value').eq('key', key).maybeSingle(),
+      8000,
+      null
+    );
+    if(!result) return { ok:false };
+    const { data, error } = result;
+    if(error) return { ok:false };
+    if(!data) return { ok:true, value:null };
+    return { ok:true, value: JSON.parse(data.value) };
+  }catch(e){ return { ok:false }; }
+}
 async function kvSet(key, value){
   if(!sb){ return false; }
   try{
@@ -417,6 +475,11 @@ function switchTab(t){
     if(pin === null) return;
     if(pin !== ADMIN_PIN){ alert('비밀번호가 올바르지 않아요.'); return; }
     adminAuthed = true;
+  }
+  if(tab==='admin' && t!=='admin'){ flushRoutineSave(); }
+  if(t==='admin' && routineDirty.size===0 && !routineSaving){
+    // 관리자 화면에 들어올 때마다 최신 루틴 기록을 새로 불러옴 (다른 기기에서 쓴 내용 반영)
+    routineMonths = {}; routineItems = null; routineStatus = 'idle'; routineDate = todayStr();
   }
   tab = t; viewingCell = null; render();
 }
@@ -687,6 +750,17 @@ function buildGrid(mode){
     }
     html += `</tr>`;
   });
+
+  // 이름 보기 모드: 각 요일 맨 아래 칸에 그 요일 학생 명단(중복 없이, 가나다순)
+  if(mode==='admin' && nameViewMode && !capEditMode){
+    html += `<tr><td class="timecell" style="vertical-align:top;">명단</td>`;
+    DAYS.forEach(d=>{
+      const names = rosterNamesFor(d);
+      html += `<td class="cell roster-cell roster-bottom"><div class="rb-count">${names.length}명</div><div class="rb-names">${names.map(escapeHtml).join(', ')}</div></td>`;
+    });
+    html += `<td class="sat-label"></td></tr>`;
+  }
+
   html += `</tbody></table></div>`;
   return html;
 }
@@ -759,6 +833,319 @@ function renderParentTab(){
     <button class="btn-primary" onclick="submitForm()">신청 완료하기</button>
   </section>
   `;
+  return html;
+}
+
+
+/* =========================================================
+   일일 루틴: 상담 메모 + 학생별 체크리스트 (노션 전송·인터뷰 진행 등)
+   저장 위치: Supabase app_kv 의 'routine-YYYY-MM'(월별 기록), 'routine-items'(체크 항목 목록)
+   ========================================================= */
+const DEFAULT_ROUTINE_ITEMS = [
+  { id:'notion',    label:'노션 전송' },
+  { id:'interview', label:'인터뷰 진행' }
+];
+let routineDate = todayStr();
+let routineItems = null;          // [{id,label}]
+let routineMonths = {};           // 'routine-2026-09' -> { days:{ '2026-09-08': { memos:[], checks:{} } } }
+let routineStatus = 'idle';       // idle | loading | ready | error
+let routineLoadingNow = false;
+let routineScope = 'day';         // day = 그 요일 수업 학생 / all = 전체 학생
+let routineOnlyMissing = false;
+let routineItemsOpen = false;
+let routineSaveText = '';
+let routineDirty = new Map();     // 날짜 -> 저장해야 할 그날 기록(객체)
+let routineSaveTimer = null;
+let routineSaving = false;
+let routineAgain = false;
+let routineNames = [];            // 지금 화면에 그려진 명단 (체크 버튼이 index로 참조)
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function dateStrOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function todayStr(){ return dateStrOf(new Date()); }
+function parseDateStr(s){ const a = s.split('-').map(Number); return new Date(a[0], a[1]-1, a[2]); }
+function weekdayOf(s){ return ['일','월','화','수','목','금','토'][parseDateStr(s).getDay()]; }
+function shiftDate(s,delta){ const d = parseDateStr(s); d.setDate(d.getDate()+delta); return dateStrOf(d); }
+function routineMonthKey(s){ return 'routine-'+s.slice(0,7); }
+
+// 한 신청에 '이아윤, 이채윤'처럼 여러 명이 같이 적힌 경우도 한 명씩 나눠서 센다
+function splitNames(s){ return String(s).split(/[,，、\/]+/).map(x=>x.trim()).filter(Boolean); }
+// 학생 명단: 중복 없이, 가나다순. day를 주면 그 요일에 수업이 있는 학생만
+function rosterNamesFor(day){
+  const set = new Set();
+  registrations.forEach(r=>{
+    if(!day || r.day===day){ splitNames(r.name).forEach(n=> set.add(n)); }
+  });
+  return Array.from(set).sort((a,b)=> a.localeCompare(b,'ko'));
+}
+
+function routineDay(date){
+  const month = routineMonths[routineMonthKey(date)];
+  if(!month.days[date]) month.days[date] = { memos:[], checks:{} };
+  const d = month.days[date];
+  if(!d.memos) d.memos = [];
+  if(!d.checks) d.checks = {};
+  return d;
+}
+
+async function loadRoutine(){
+  if(routineLoadingNow) return;
+  routineLoadingNow = true;
+  routineStatus = 'loading';
+  render();
+  const mk = routineMonthKey(routineDate);
+  const itemsRes = (routineItems!==null) ? { ok:true, value:routineItems } : await kvGetStrict('routine-items');
+  const monthRes = routineMonths[mk] ? { ok:true, value:routineMonths[mk] } : await kvGetStrict(mk);
+  routineLoadingNow = false;
+  if(!itemsRes.ok || !monthRes.ok){ routineStatus = 'error'; render(); return; }
+  routineItems = (itemsRes.value && itemsRes.value.length) ? itemsRes.value : DEFAULT_ROUTINE_ITEMS.map(x=>({ id:x.id, label:x.label }));
+  const month = monthRes.value || { days:{} };
+  if(!month.days) month.days = {};
+  routineMonths[mk] = month;
+  routineStatus = 'ready';
+  render();
+}
+
+function setRoutineSaveText(t){
+  routineSaveText = t;
+  const el = document.getElementById('rtSaveStatus');
+  if(el) el.textContent = t;
+}
+function markRoutineDirty(date){
+  routineDirty.set(date, routineDay(date));
+  setRoutineSaveText('저장 대기 중…');
+  clearTimeout(routineSaveTimer);
+  routineSaveTimer = setTimeout(flushRoutineSave, 900);
+}
+async function flushRoutineSave(){
+  clearTimeout(routineSaveTimer); routineSaveTimer = null;
+  if(routineSaving){ routineAgain = true; return; }
+  if(routineDirty.size===0) return;
+  routineSaving = true;
+  const pending = new Map(routineDirty);
+  routineDirty.clear();
+  setRoutineSaveText('저장 중…');
+  let allOk = true;
+  const byMonth = {};
+  pending.forEach((dayObj, date)=>{
+    const mk = routineMonthKey(date);
+    if(!byMonth[mk]) byMonth[mk] = [];
+    byMonth[mk].push(date);
+  });
+  try{
+    for(const mk of Object.keys(byMonth)){
+      // 저장 직전에 서버의 최신 월 기록을 다시 읽어서, 바뀐 날짜만 얹어 저장 (다른 날짜 기록을 덮어쓰지 않도록)
+      const latest = await kvGetStrict(mk);
+      let ok = false;
+      if(latest.ok){
+        const month = latest.value || { days:{} };
+        if(!month.days) month.days = {};
+        byMonth[mk].forEach(d=>{ month.days[d] = pending.get(d); });
+        ok = await kvSet(mk, month);
+        if(ok) routineMonths[mk] = month;
+      }
+      if(!ok){
+        allOk = false;
+        byMonth[mk].forEach(d=>{ if(!routineDirty.has(d)) routineDirty.set(d, pending.get(d)); });
+      }
+    }
+  } finally {
+    routineSaving = false;
+  }
+  if(allOk){
+    setRoutineSaveText(routineDirty.size ? '저장 대기 중…' : '저장됨 ✓');
+  } else {
+    setRoutineSaveText('저장 실패 — 잠시 후 자동으로 다시 시도해요');
+    clearTimeout(routineSaveTimer);
+    routineSaveTimer = setTimeout(flushRoutineSave, 5000);
+  }
+  if(routineAgain){ routineAgain = false; flushRoutineSave(); }
+}
+
+function setRoutineDate(d){
+  if(!d) return;
+  flushRoutineSave();
+  routineDate = d;
+  render();   // 해당 달 기록이 아직 없으면 renderRoutineSection이 알아서 불러옴
+}
+function setRoutineScope(s){ routineScope = s; render(); }
+function toggleRoutineOnlyMissing(){ routineOnlyMissing = !routineOnlyMissing; render(); }
+
+// ---- 상담 메모 ----
+function addRoutineMemo(){
+  const day = routineDay(routineDate);
+  day.memos.push({ id:uid(), who:'', text:'' });
+  markRoutineDirty(routineDate);
+  render();
+}
+function updateRoutineMemo(id, field, value){
+  const m = routineDay(routineDate).memos.find(x=> x.id===id);
+  if(!m) return;
+  m[field] = value;
+  markRoutineDirty(routineDate);
+}
+function deleteRoutineMemo(id){
+  const day = routineDay(routineDate);
+  const m = day.memos.find(x=> x.id===id);
+  if(m && (m.who || m.text) && !window.confirm('이 상담 메모를 삭제할까요?')) return;
+  day.memos = day.memos.filter(x=> x.id!==id);
+  markRoutineDirty(routineDate);
+  render();
+}
+
+// ---- 학생별 체크 ----
+function routineStats(names, day){
+  return routineItems.map(it=>{
+    const missing = names.filter(n=> !(day.checks[n] && day.checks[n][it.id]));
+    return { it:it, total:names.length, done:names.length-missing.length, missing:missing };
+  });
+}
+function routineSummaryInner(){
+  const day = routineDay(routineDate);
+  return routineStats(routineNames, day).map(s=>
+    `<div class="rt-sum ${(s.total>0 && s.done===s.total)?'ok':''}"><b>${escapeHtml(s.it.label)}</b> ${s.done}/${s.total}</div>`
+  ).join('');
+}
+function routineMissingInner(){
+  const day = routineDay(routineDate);
+  return routineStats(routineNames, day).map(s=>
+    s.missing.length
+      ? `<div><b>${escapeHtml(s.it.label)}</b> 누락 ${s.missing.length}명: ${s.missing.map(escapeHtml).join(', ')}</div>`
+      : `<div><b>${escapeHtml(s.it.label)}</b> 모두 완료 ✓</div>`
+  ).join('');
+}
+function updateRoutineSummary(){
+  const a = document.getElementById('rtSummary'); if(a) a.innerHTML = routineSummaryInner();
+  const b = document.getElementById('rtMissingBody'); if(b) b.innerHTML = routineMissingInner();
+}
+function toggleRoutineCheck(idx, itemId, btn){
+  const name = routineNames[idx];
+  if(name===undefined) return;
+  const day = routineDay(routineDate);
+  if(!day.checks[name]) day.checks[name] = {};
+  if(day.checks[name][itemId]) delete day.checks[name][itemId]; else day.checks[name][itemId] = true;
+  if(Object.keys(day.checks[name]).length===0) delete day.checks[name];
+  markRoutineDirty(routineDate);
+  // 화면 전체를 다시 그리지 않고 눌린 버튼·카드·합계만 갱신 (스크롤 위치가 튀지 않도록)
+  const ch = day.checks[name] || {};
+  if(btn){
+    btn.classList.toggle('on', !!ch[itemId]);
+    const card = btn.closest('.rt-card');
+    if(card) card.classList.toggle('rt-done', routineItems.every(it=> ch[it.id]));
+  }
+  updateRoutineSummary();
+}
+
+// ---- 체크 항목 관리 (세 번째 항목 등 자유롭게 추가) ----
+async function saveRoutineItems(){
+  const ok = await kvSet('routine-items', routineItems);
+  if(!ok) showToast('항목 저장에 실패했어요. 다시 시도해 주세요.');
+}
+async function addRoutineItem(){
+  const label = (window.prompt('추가할 체크 항목 이름을 입력해 주세요. (예: 독서노트 확인)') || '').trim();
+  if(!label) return;
+  routineItems.push({ id:'i'+uid(), label:label });
+  await saveRoutineItems();
+  render();
+}
+async function renameRoutineItem(id){
+  const it = routineItems.find(x=> x.id===id); if(!it) return;
+  const label = (window.prompt('항목 이름을 바꿔 주세요.', it.label) || '').trim();
+  if(!label) return;
+  it.label = label;
+  await saveRoutineItems();
+  render();
+}
+async function deleteRoutineItem(id){
+  if(routineItems.length<=1){ alert('체크 항목은 최소 1개는 있어야 해요.'); return; }
+  const it = routineItems.find(x=> x.id===id); if(!it) return;
+  if(!window.confirm(`'${it.label}' 항목을 삭제할까요?\n화면에서만 사라지고, 이미 체크해 둔 과거 기록은 그대로 남아있어요.`)) return;
+  routineItems = routineItems.filter(x=> x.id!==id);
+  await saveRoutineItems();
+  render();
+}
+
+function renderRoutineSection(){
+  const wd = weekdayOf(routineDate);
+  const mk = routineMonthKey(routineDate);
+  let html = `<section class="card" id="routineSection">
+    <h2>일일 루틴 체크</h2>
+    <div class="hint">날짜별로 상담 메모를 남기고, 그날 수업하는 학생들의 노션 전송·인터뷰 진행 등을 체크해서 누락 없이 관리해요. 입력하면 자동으로 저장돼요.</div>
+    <div class="rt-head">
+      <button class="btn-ghost" onclick="setRoutineDate(shiftDate(routineDate,-1))">‹ 전날</button>
+      <input type="date" value="${routineDate}" onchange="setRoutineDate(this.value)">
+      <button class="btn-ghost" onclick="setRoutineDate(shiftDate(routineDate,1))">다음날 ›</button>
+      <button class="btn-ghost" onclick="setRoutineDate(todayStr())">오늘</button>
+      <b class="rt-day">${routineDate} (${wd}요일)</b>
+      <span id="rtSaveStatus" class="rt-save">${escapeHtml(routineSaveText)}</span>
+    </div>`;
+
+  // 날짜를 바꿔서 아직 안 불러온 달이면 다시 불러옴
+  if(routineStatus==='ready' && !routineMonths[mk]) routineStatus = 'idle';
+  if(routineStatus==='idle'){ setTimeout(loadRoutine, 0); }
+  if(routineStatus==='idle' || routineStatus==='loading'){
+    return html + `<div class="empty">불러오는 중…</div></section>`;
+  }
+  if(routineStatus==='error'){
+    return html + `<div class="hint" style="color:var(--coral);">기록을 불러오지 못했어요. 네트워크 상태를 확인하고 다시 시도해 주세요. (불러오기 전에는 저장이 되지 않게 막아뒀어요)</div>
+      <button class="btn-ghost" onclick="loadRoutine()">다시 시도</button></section>`;
+  }
+
+  const day = routineDay(routineDate);
+
+  // 1) 상담 메모
+  html += `<h3 class="rt-h3">상담 메모 <span class="rt-sub">· 어느 부모님과 어떤 이야기를 나눴는지</span></h3>`;
+  if(day.memos.length===0){ html += `<div class="empty">이 날 남긴 상담 메모가 없어요.</div>`; }
+  day.memos.forEach(m=>{
+    html += `<div class="rt-memo">
+      <div class="rt-memo-top">
+        <input type="text" placeholder="누구와 (예: 김민준 어머님)" value="${escapeHtml(m.who||'')}" oninput="updateRoutineMemo('${m.id}','who',this.value)">
+        <button class="del-btn" onclick="deleteRoutineMemo('${m.id}')">삭제</button>
+      </div>
+      <textarea class="rt-text" rows="3" placeholder="상담 내용을 적어 주세요" oninput="updateRoutineMemo('${m.id}','text',this.value)">${escapeHtml(m.text||'')}</textarea>
+    </div>`;
+  });
+  html += `<button class="btn-ghost" onclick="addRoutineMemo()">+ 상담 메모 추가</button>`;
+
+  // 2) 학생 체크리스트
+  const allNames = rosterNamesFor(null);
+  const dayNames = (wd==='일') ? [] : rosterNamesFor(wd);
+  const useAll = (routineScope==='all' || wd==='일');
+  routineNames = useAll ? allNames : dayNames;
+
+  html += `<h3 class="rt-h3">학생 체크 <span class="rt-sub">· ${useAll ? '전체 학생' : wd+'요일 수업 학생'} ${routineNames.length}명 (가나다순, 중복 없음)</span></h3>
+    <div class="rt-head">
+      <button class="btn-ghost ${!useAll?'on':''}" onclick="setRoutineScope('day')">${wd}요일 수업 학생 (${dayNames.length}명)</button>
+      <button class="btn-ghost ${useAll?'on':''}" onclick="setRoutineScope('all')">전체 학생 (${allNames.length}명)</button>
+      <button class="btn-ghost ${routineOnlyMissing?'on':''}" onclick="toggleRoutineOnlyMissing()">누락 있는 학생만 보기</button>
+    </div>`;
+  if(wd==='일'){ html += `<div class="hint">일요일은 수업이 없어서 전체 학생 명단을 보여드려요.</div>`; }
+
+  if(routineNames.length===0){
+    html += `<div class="empty">이 요일에 신청된 학생이 없어요.</div>`;
+  } else {
+    html += `<div class="rt-sums" id="rtSummary">${routineSummaryInner()}</div>
+      <details class="rt-missing"><summary>누락된 학생 한눈에 보기</summary><div class="rt-missing-body" id="rtMissingBody">${routineMissingInner()}</div></details>
+      <div class="rt-grid">`;
+    routineNames.forEach((n,i)=>{
+      const ch = day.checks[n] || {};
+      const complete = routineItems.every(it=> ch[it.id]);
+      if(routineOnlyMissing && complete) return;
+      html += `<div class="rt-card ${complete?'rt-done':''}"><div class="rt-name">${escapeHtml(n)}</div><div class="rt-btns">`
+        + routineItems.map(it=>`<button class="rt-btn ${ch[it.id]?'on':''}" onclick="toggleRoutineCheck(${i},'${it.id}',this)">${escapeHtml(it.label)}</button>`).join('')
+        + `</div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 3) 체크 항목 관리
+  html += `<details class="rt-items" ${routineItemsOpen?'open':''} ontoggle="routineItemsOpen=this.open"><summary>체크 항목 관리 (항목 추가·이름 변경·삭제)</summary>`
+    + routineItems.map(it=>`<div class="rt-item-row"><span>${escapeHtml(it.label)}</span><span>
+        <button class="del-btn" style="color:var(--navy);" onclick="renameRoutineItem('${it.id}')">이름 변경</button>
+        <button class="del-btn" onclick="deleteRoutineItem('${it.id}')">삭제</button></span></div>`).join('')
+    + `<div style="margin-top:8px;"><button class="btn-ghost" onclick="addRoutineItem()">+ 체크 항목 추가</button></div></details>`;
+
+  html += `</section>`;
   return html;
 }
 
@@ -839,6 +1226,8 @@ function renderAdminTab(){
     html += `</div>`;
   }
   html += `</section>`;
+
+  html += renderRoutineSection();
 
   const noticeText = `[2026년 2학기 시간표 신청 안내]
 
@@ -1002,6 +1391,9 @@ function renderLoadError(){
     </div>
   `;
 }
+
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden'){ flushRoutineSave(); } });
+window.addEventListener('pagehide', function(){ flushRoutineSave(); });
 
 (async function init(){
   try{
